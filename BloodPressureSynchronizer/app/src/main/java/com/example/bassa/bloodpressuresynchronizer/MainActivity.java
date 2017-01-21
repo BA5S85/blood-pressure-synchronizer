@@ -1,5 +1,7 @@
 package com.example.bassa.bloodpressuresynchronizer;
 
+import android.content.ContentValues;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.support.design.widget.TabLayout;
 import android.support.v4.app.Fragment;
@@ -34,6 +36,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
@@ -52,8 +55,33 @@ public class MainActivity extends AppCompatActivity {
         TabLayout tabLayout = (TabLayout) findViewById(R.id.tabs);
         tabLayout.setupWithViewPager(mViewPager);
 
+        // Create a database helper
+        DatabaseHelper dbHelper = new DatabaseHelper(MainActivity.this);
+
+        // Gets the data repository in write mode
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+
+        // Get dummy data
+        ContentValues values = getDummyValues();
+
+        // Insert the new row, returning the primary key value of the new row
+        long newRowId;
+        newRowId = db.insert(
+                DatabaseContract.BPEntry.TABLE_NAME,
+                null,
+                values);
+
     }
 
+    private ContentValues getDummyValues() {
+        // Create a new map of values, where column names are the keys
+        ContentValues values = new ContentValues();
+        values.put(DatabaseContract.BPEntry.COLUMN_NAME_SYS, 123);
+        values.put(DatabaseContract.BPEntry.COLUMN_NAME_DIA, 70);
+        values.put(DatabaseContract.BPEntry.COLUMN_NAME_PULSE, 59);
+        values.put(DatabaseContract.BPEntry.COLUMN_NAME_DATE, "2016-11-29 17:19:05");
+        return values;
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -131,7 +159,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public int getCount() {
-            // Show 3 total pages.
+            // Show 2 total pages.
             return 2;
         }
 
