@@ -1,5 +1,6 @@
 package com.example.bassa.bloodpressuresynchronizer;
 
+import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
@@ -93,7 +94,8 @@ public class MainActivity extends AppCompatActivity
         int id = item.getItemId();
 
         if (id == R.id.nav_edit) {
-
+            Intent personalInfoIntent = new Intent(this, PersonalInfoActivity.class);
+            startActivity(personalInfoIntent);
         } else if (id == R.id.nav_manage) {
 
         }
