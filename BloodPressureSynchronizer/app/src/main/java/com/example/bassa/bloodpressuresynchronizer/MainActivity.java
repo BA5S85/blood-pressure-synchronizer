@@ -9,7 +9,6 @@ import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
@@ -38,16 +37,15 @@ public class MainActivity extends AppCompatActivity
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
-        // Create a database helper
-        DatabaseHelper dbHelper = new DatabaseHelper(MainActivity.this);
+        DatabaseHelper dbHelper = new DatabaseHelper(MainActivity.this); // create a database helper
+        SQLiteDatabase db = dbHelper.getWritableDatabase(); // get the data repository in write mode
+        populateListViewFromDB(db); // get the data from database and show it in the UI
 
-        // Gets the data repository in write mode
-        SQLiteDatabase db = dbHelper.getWritableDatabase();
+        // Start initializing views
 
-        // Get the data from database and show it in the UI
-        populateListViewFromDB(db);
+        final LinearLayout bottomBtns = (LinearLayout) findViewById(R.id.bottomBtns);
 
-        Button selectEntriesBtn = (Button) findViewById(R.id.selectEntriesBtn);
+        final Button selectEntriesBtn = (Button) findViewById(R.id.selectEntriesBtn);
         selectEntriesBtn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 // Tell the adapter to show the checkboxes
@@ -55,13 +53,25 @@ public class MainActivity extends AppCompatActivity
                 databaseCursorAdapter.notifyDataSetChanged();
 
                 // Remove yourself
-                ((LinearLayout) v.getParent()).removeView(v);
+                v.setVisibility(View.GONE);
 
                 // Add 'Cancel', 'Send to doctor' and 'Delete' buttons instead
-                LinearLayout root = (LinearLayout) findViewById(R.id.content_main);
-                LayoutInflater inflater = LayoutInflater.from(MainActivity.this);
-                View inflatedLayout = inflater.inflate(R.layout.bottom_buttons_layout, null, false);
-                root.addView(inflatedLayout);
+                bottomBtns.setVisibility(View.VISIBLE);
+            }
+        });
+
+        Button cancelBtn = (Button) findViewById(R.id.cancelBtn);
+        cancelBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                // Tell the adapter to hide the checkboxes
+                databaseCursorAdapter.setCheckBoxesShown(false);
+                databaseCursorAdapter.notifyDataSetChanged();
+
+                // Remove yourself
+                bottomBtns.setVisibility(View.GONE);
+
+                // Add 'Select entries' button instead
+                selectEntriesBtn.setVisibility(View.VISIBLE);
             }
         });
     }

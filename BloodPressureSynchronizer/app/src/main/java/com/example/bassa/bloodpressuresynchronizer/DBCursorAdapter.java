@@ -43,27 +43,30 @@ public class DBCursorAdapter extends SimpleCursorAdapter {
         if (convertView == null) {
             convertView = inflater.inflate(R.layout.entry_layout, null);
         } else {
+            CheckBox checkBox = (CheckBox) convertView.findViewById(R.id.checkBox);
+
             if (checkBoxesShown) {
-                CheckBox checkBox = (CheckBox) convertView.findViewById(R.id.checkBox);
                 checkBox.setVisibility(View.VISIBLE);
+
+                checkBox.setOnClickListener(new View.OnClickListener() {
+                    public void onClick(View v) {
+                        CheckBox checkBox = (CheckBox) v.findViewById(R.id.checkBox);
+                        if (checkBox.isChecked()) {
+                            checkedBoxes.set(pos, true);
+                        } else if (!checkBox.isChecked()) {
+                            checkedBoxes.set(pos, false);
+                        }
+                    }
+                });
+
+                // Set the state of the checkbox according to what it was before the list view lost its state
+                checkBox.setChecked(checkedBoxes.get(pos));
+            } else {
+                checkedBoxes.set(pos, false);
+                checkBox.setChecked(false);
+                checkBox.setVisibility(View.INVISIBLE);
             }
         }
-
-        final CheckBox checkBox = (CheckBox) convertView.findViewById(R.id.checkBox);
-        checkBox.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                CheckBox checkBox = (CheckBox) v.findViewById(R.id.checkBox);
-
-                if (checkBox.isChecked()) {
-                    checkedBoxes.set(pos, true);
-                } else if (!checkBox.isChecked()) {
-                    checkedBoxes.set(pos, false);
-                }
-            }
-        });
-
-        // Set the state of the checkbox according to what it was before the list view lost its state
-        checkBox.setChecked(checkedBoxes.get(pos));
 
         return convertView;
     }
