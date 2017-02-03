@@ -30,9 +30,8 @@ public class DBCursorAdapter extends SimpleCursorAdapter {
         checkBoxesShown = false;
 
         // Initialize the ArrayList items to default value false, meaning no checkbox is checked yet
-        int i;
         int n = this.getCount();
-        for (i = 0; i < n; i++) {
+        for (int i = 0; i < n; i++) {
             checkedBoxes.add(i, false);
         }
     }
@@ -71,12 +70,12 @@ public class DBCursorAdapter extends SimpleCursorAdapter {
         return convertView;
     }
 
-    public boolean getCheckBoxesShown() {
-        return checkBoxesShown;
-    }
-
     public void setCheckBoxesShown(boolean b) {
         checkBoxesShown = b;
+    }
+
+    public ArrayList<Boolean> getCheckedBoxes() {
+        return checkedBoxes;
     }
 
 }

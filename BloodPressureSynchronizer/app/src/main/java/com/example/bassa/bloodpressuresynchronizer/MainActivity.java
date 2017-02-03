@@ -16,6 +16,8 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 
+import java.util.ArrayList;
+
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
@@ -38,8 +40,8 @@ public class MainActivity extends AppCompatActivity
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
-        DatabaseHelper dbHelper = new DatabaseHelper(MainActivity.this); // create a database helper
-        SQLiteDatabase db = dbHelper.getWritableDatabase(); // get the data repository in write mode
+        final DatabaseHelper dbHelper = new DatabaseHelper(MainActivity.this); // create a database helper
+        final SQLiteDatabase db = dbHelper.getWritableDatabase(); // get the data repository in write mode
         populateListViewFromDB(db); // get the data from database and show it in the UI
 
         // Start initializing views
@@ -61,7 +63,7 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
-        Button cancelBtn = (Button) findViewById(R.id.cancelBtn);
+        final Button cancelBtn = (Button) findViewById(R.id.cancelBtn);
         cancelBtn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 // Tell the adapter to hide the checkboxes
@@ -73,6 +75,25 @@ public class MainActivity extends AppCompatActivity
 
                 // Add 'Select entries' button instead
                 selectEntriesBtn.setVisibility(View.VISIBLE);
+            }
+        });
+
+        Button deleteBtn = (Button) findViewById(R.id.deleteBtn);
+        deleteBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                // Remove the rows from our database
+                ArrayList<Boolean> checkedBoxes = databaseCursorAdapter.getCheckedBoxes();
+                int n = checkedBoxes.size();
+                for (int i = 0; i < n; i++) {
+                    if (checkedBoxes.get(i)) {
+                        long id = databaseCursorAdapter.getItemId(i);
+                        dbHelper.delete(db, id);
+                    }
+                }
+
+                // Requery the cursor
+                databaseCursorAdapter.getCursor().requery();
+                cancelBtn.performClick();
             }
         });
     }
