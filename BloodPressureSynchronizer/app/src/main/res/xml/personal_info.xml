@@ -8,11 +8,9 @@
         <EditTextPreference
             android:key="user_name"
             android:title="Minu ees- ja perekonnanimi" />
-        <ListPreference
-            android:key="user_sex"
-            android:title="Minu sugu"
-            android:entries="@array/sexArray"
-            android:entryValues="@array/sexValues" />
+        <EditTextPreference
+            android:key="user_id"
+            android:title="Minu isikukood" />
     </PreferenceCategory>
 
     <PreferenceCategory

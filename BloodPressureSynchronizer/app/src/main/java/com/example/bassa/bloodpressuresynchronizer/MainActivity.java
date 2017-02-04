@@ -1,9 +1,11 @@
 package com.example.bassa.bloodpressuresynchronizer;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
@@ -15,6 +17,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.TextView;
 
 import java.util.ArrayList;
 
@@ -22,6 +25,9 @@ public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
     private DBCursorAdapter databaseCursorAdapter;
+
+    private static NavigationView navigationView;
+    private ListView listView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,8 +43,13 @@ public class MainActivity extends AppCompatActivity
         drawer.setDrawerListener(toggle);
         toggle.syncState();
 
-        NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
+        navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
+
+        // Set user's name and sex to be shown in the navbar
+        SharedPreferences shared = PreferenceManager.getDefaultSharedPreferences(this);
+        updateNavBarInfo(shared, "user_name");
+        updateNavBarInfo(shared, "user_id");
 
         final DatabaseHelper dbHelper = new DatabaseHelper(MainActivity.this); // create a database helper
         final SQLiteDatabase db = dbHelper.getWritableDatabase(); // get the data repository in write mode
@@ -99,6 +110,16 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
+    public void onContentChanged() {
+        super.onContentChanged();
+
+        // Shows a message when there are no BP data entries in the database
+        View empty = findViewById(R.id.emptyLabel);
+        ListView list = (ListView) findViewById(R.id.listView);
+        list.setEmptyView(empty);
+    }
+
+    @Override
     public void onBackPressed() {
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         if (drawer.isDrawerOpen(GravityCompat.START)) {
@@ -124,6 +145,20 @@ public class MainActivity extends AppCompatActivity
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
         return true;
+    }
+
+    protected static void updateNavBarInfo(SharedPreferences shared, String key) {
+        View header = navigationView.getHeaderView(0);
+
+        if (key.equals("user_name")) {
+            String userName = shared.getString("user_name", "");
+            TextView navBarName = (TextView) header.findViewById(R.id.navBarName);
+            navBarName.setText(userName);
+        } else if (key.equals("user_id")) {
+            String userID = shared.getString("user_id", "");
+            TextView navBarSummary = (TextView) header.findViewById(R.id.navBarSummary);
+            navBarSummary.setText(userID);
+        }
     }
 
     private void populateListViewFromDB(SQLiteDatabase db) {
@@ -168,7 +203,7 @@ public class MainActivity extends AppCompatActivity
         );
 
         // Set the adapter for the list view
-        ListView listView = (ListView) findViewById(R.id.listView);
+        listView = (ListView) findViewById(R.id.listView);
         listView.setAdapter(databaseCursorAdapter);
     }
 

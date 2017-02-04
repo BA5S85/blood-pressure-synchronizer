@@ -49,6 +49,13 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"/>
 
+            <TextView
+                android:id="@+id/emptyLabel"
+                android:text="Hea sõber! Sul puuduvad andmed vererõhu mõõtmiste kohta. Andmete lisamiseks on sul kaks võimalust:\r\n\r\n1. Sa võid seadistada, et see mobiilirakendus mõõdaks su vererõhku ise. Selleks tee lahti vasakpoolne külgriba ja mine seadetesse. Sealt otsi üles 'Vererõhu automaatne mõõtmine' ja lülita see sisse. Kõik! Enam ei pea midagi tegema, sest rakendus teeb kogu töö sinu eest ära.\r\n\r\n2. Sa võid mõõta enda vererõhku siis, kui ise tahad. Selleks vajuta allolevale + nupule, loe juhendit ja edasi tegutse nii, nagu seal kirjas on.\r\n\r\nHead mõõtmist!"
+                android:layout_width="fill_parent"
+                android:layout_height="fill_parent"
+                android:gravity="center"/>
+
             <Button
                 android:id="@+id/selectEntriesBtn"
                 android:text="Vali kirjed"
