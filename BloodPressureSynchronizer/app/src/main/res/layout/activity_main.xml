@@ -54,7 +54,9 @@
                 android:text="Vali kirjed"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="#2296F3"
+                android:background="@drawable/button"
+                style="?android:attr/borderlessButtonStyle"
+                android:minHeight="40dip"
                 android:textColor="#FFFFFF"
                 android:layout_gravity="center"/>
 
@@ -67,11 +69,13 @@
                 android:visibility="gone">
 
                 <Button
-                    android:text="Loobu valimisest"
+                    android:text="Tühista"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:id="@+id/cancelBtn"
-                    android:background="#2296F3"
+                    android:background="@drawable/button"
+                    style="?android:attr/borderlessButtonStyle"
+                    android:minHeight="40dip"
                     android:textColor="#FFFFFF"
                     android:layout_margin="5dp"/>
 
@@ -80,7 +84,9 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:id="@+id/sendToDoctorBtn"
-                    android:background="#2296F3"
+                    android:background="@drawable/button"
+                    style="?android:attr/borderlessButtonStyle"
+                    android:minHeight="40dip"
                     android:textColor="#FFFFFF"
                     android:layout_margin="5dp"/>
 
@@ -89,7 +95,9 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:id="@+id/deleteBtn"
-                    android:background="#2296F3"
+                    android:background="@drawable/button"
+                    style="?android:attr/borderlessButtonStyle"
+                    android:minHeight="40dip"
                     android:textColor="#FFFFFF"
                     android:layout_margin="5dp"/>
 

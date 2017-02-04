@@ -171,4 +171,5 @@ public class MainActivity extends AppCompatActivity
         ListView listView = (ListView) findViewById(R.id.listView);
         listView.setAdapter(databaseCursorAdapter);
     }
+
 }
