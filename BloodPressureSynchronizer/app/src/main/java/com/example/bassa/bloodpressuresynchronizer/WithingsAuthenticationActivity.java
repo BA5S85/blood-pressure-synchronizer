@@ -89,8 +89,8 @@ public class WithingsAuthenticationActivity extends AppCompatActivity {
 
 class WithingsAPI extends DefaultApi10a {
 
-    protected static final String API_KEY = "";
-    protected static final String API_SECRET = "";
+    protected static final String API_KEY = BuildConfig.API_KEY;
+    protected static final String API_SECRET = BuildConfig.API_SECRET;
 
     protected WithingsAPI() {
     }
