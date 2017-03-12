@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.design.widget.NavigationView;
@@ -12,6 +13,7 @@ import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
@@ -19,6 +21,12 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import com.github.scribejava.core.builder.ServiceBuilder;
+import com.github.scribejava.core.model.OAuth1AccessToken;
+import com.github.scribejava.core.model.OAuth1RequestToken;
+import com.github.scribejava.core.oauth.OAuth10aService;
+
+import java.io.IOException;
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity
@@ -29,11 +37,93 @@ public class MainActivity extends AppCompatActivity
     private static NavigationView navigationView;
     private ListView listView;
 
+    private SharedPreferences prefs;
+
+    public static final int AUTHENTICATION_REQUEST = 1;
+
+    public static OAuth10aService service;
+    public static OAuth1RequestToken requestToken;
+    private String accessTokenKey, accessTokenSecret;
+    private OAuth1AccessToken accessToken;
+    private String oauth_verifier = "";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        prefs = PreferenceManager.getDefaultSharedPreferences(this);
+
+        accessTokenKey = prefs.getString("access_token_key", "");
+        accessTokenSecret = prefs.getString("access_token_secret", "");
+
+        // http://stackoverflow.com/a/40258662/5572217
+        if (accessTokenKey.isEmpty() && accessTokenSecret.isEmpty()) {
+            startAuthenticationActivity();
+        } else {
+            service = new ServiceBuilder()
+                    .apiKey(WithingsAPI.API_KEY)
+                    .apiSecret(WithingsAPI.API_SECRET)
+                    .build(WithingsAPI.instance());
+            accessToken = new OAuth1AccessToken(accessTokenKey, accessTokenSecret);
+
+            initializeUI();
+        }
+    }
+
+    // http://stackoverflow.com/a/40258662/5572217
+    private void startAuthenticationActivity() {
+        Intent intent = new Intent(this, WithingsAuthenticationActivity.class);
+        startActivityForResult(intent, AUTHENTICATION_REQUEST);
+    }
+
+    @Override
+    // http://stackoverflow.com/a/40258662/5572217
+    protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
+        Log.w("WITHINS_SUCCESS_LOG", "onActivityResult(int requestCode, int resultCode, Intent intent)");
+
+        if (requestCode == AUTHENTICATION_REQUEST) {
+
+            if (resultCode == RESULT_OK) {
+                Bundle extras = intent.getExtras();
+                if (extras != null) {
+                    oauth_verifier = extras.getString("VERIFIER");
+                    getAccessTokenThread.execute((Object) null);
+                }
+            }
+
+        }
+    }
+
+    // http://stackoverflow.com/a/40258662/5572217
+    AsyncTask<Object, Object, Object> getAccessTokenThread = new AsyncTask<Object, Object, Object>() {
+        @Override
+        protected Object doInBackground(Object... params) {
+            try {
+                accessToken = service.getAccessToken(requestToken, oauth_verifier);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            accessTokenKey = accessToken.getToken();
+            accessTokenSecret = accessToken.getTokenSecret();
+
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Object result) {
+            // authentication complete
+            SharedPreferences.Editor editor = prefs.edit();
+            editor.putString("access_token_key", accessTokenKey);
+            editor.putString("access_token_secret", accessTokenSecret);
+            editor.apply();
+
+            initializeUI();
+        };
+    };
+
+    private void initializeUI() {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -47,9 +137,8 @@ public class MainActivity extends AppCompatActivity
         navigationView.setNavigationItemSelectedListener(this);
 
         // Set user's name and sex to be shown in the navbar
-        SharedPreferences shared = PreferenceManager.getDefaultSharedPreferences(this);
-        updateNavBarInfo(shared, "user_name");
-        updateNavBarInfo(shared, "user_id");
+        updateNavBarInfo(prefs, "user_name");
+        updateNavBarInfo(prefs, "user_id");
 
         final DatabaseHelper dbHelper = new DatabaseHelper(MainActivity.this); // create a database helper
         final SQLiteDatabase db = dbHelper.getWritableDatabase(); // get the data repository in write mode
