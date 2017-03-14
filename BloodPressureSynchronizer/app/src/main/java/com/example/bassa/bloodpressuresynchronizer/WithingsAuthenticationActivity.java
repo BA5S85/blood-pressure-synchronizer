@@ -65,16 +65,20 @@ public class WithingsAuthenticationActivity extends AppCompatActivity {
 
     private void getVerifier(final String url) {
         try {
-            String divStr = "oauth_verifier=";
-            int i = url.indexOf(divStr);
+            String divStrUID = "userid=";
+            String divStrVerifier = "oauth_verifier=";
 
-            if (i != -1){
-                Log.w("WITHINS_SUCCESS_LOG", "getVerifier(final String url)");
+            int i = url.indexOf(divStrUID);
+            int j = url.indexOf(divStrVerifier);
 
-                final String oauth_verifier = url.substring(i + divStr.length());
+            if (i != -1 && j != -1){
+                final String userid = url.substring(i + divStrUID.length(), url.indexOf('&'));
+                final String oauth_verifier = url.substring(j + divStrVerifier.length());
 
                 Intent intent = new Intent();
+                intent.putExtra("USER_ID", userid);
                 intent.putExtra("VERIFIER", oauth_verifier);
+
                 setResult(RESULT_OK, intent);
 
                 finish();

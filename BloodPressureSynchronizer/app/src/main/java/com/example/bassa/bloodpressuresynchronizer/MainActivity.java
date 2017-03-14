@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
@@ -13,7 +14,7 @@ import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
+import android.util.Base64;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
@@ -27,7 +28,15 @@ import com.github.scribejava.core.model.OAuth1RequestToken;
 import com.github.scribejava.core.oauth.OAuth10aService;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Random;
+
+import javax.crypto.Mac;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
@@ -43,9 +52,14 @@ public class MainActivity extends AppCompatActivity
 
     public static OAuth10aService service;
     public static OAuth1RequestToken requestToken;
+
     private String accessTokenKey, accessTokenSecret;
     private OAuth1AccessToken accessToken;
-    private String oauth_verifier = "";
+
+    private String user_id;
+    private String oauth_verifier;
+
+    private static final String ENC = "UTF-8";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,10 +70,12 @@ public class MainActivity extends AppCompatActivity
 
         accessTokenKey = prefs.getString("access_token_key", "");
         accessTokenSecret = prefs.getString("access_token_secret", "");
+        user_id = prefs.getString("user_id", "");
 
         // http://stackoverflow.com/a/40258662/5572217
-        if (accessTokenKey.isEmpty() && accessTokenSecret.isEmpty()) {
-            startAuthenticationActivity();
+        if (accessTokenKey.isEmpty() || accessTokenSecret.isEmpty() || user_id.isEmpty()) {
+            Intent intent = new Intent(this, WithingsAuthenticationActivity.class);
+            startActivityForResult(intent, AUTHENTICATION_REQUEST);
         } else {
             service = new ServiceBuilder()
                     .apiKey(WithingsAPI.API_KEY)
@@ -71,27 +87,18 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
-    // http://stackoverflow.com/a/40258662/5572217
-    private void startAuthenticationActivity() {
-        Intent intent = new Intent(this, WithingsAuthenticationActivity.class);
-        startActivityForResult(intent, AUTHENTICATION_REQUEST);
-    }
-
     @Override
     // http://stackoverflow.com/a/40258662/5572217
     protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
-        Log.w("WITHINS_SUCCESS_LOG", "onActivityResult(int requestCode, int resultCode, Intent intent)");
-
         if (requestCode == AUTHENTICATION_REQUEST) {
-
             if (resultCode == RESULT_OK) {
                 Bundle extras = intent.getExtras();
                 if (extras != null) {
+                    user_id = extras.getString("USER_ID");
                     oauth_verifier = extras.getString("VERIFIER");
                     getAccessTokenThread.execute((Object) null);
                 }
             }
-
         }
     }
 
@@ -101,13 +108,11 @@ public class MainActivity extends AppCompatActivity
         protected Object doInBackground(Object... params) {
             try {
                 accessToken = service.getAccessToken(requestToken, oauth_verifier);
+                accessTokenKey = accessToken.getToken();
+                accessTokenSecret = accessToken.getTokenSecret();
             } catch (IOException e) {
                 e.printStackTrace();
             }
-
-            accessTokenKey = accessToken.getToken();
-            accessTokenSecret = accessToken.getTokenSecret();
-
             return null;
         }
 
@@ -117,6 +122,7 @@ public class MainActivity extends AppCompatActivity
             SharedPreferences.Editor editor = prefs.edit();
             editor.putString("access_token_key", accessTokenKey);
             editor.putString("access_token_secret", accessTokenSecret);
+            editor.putString("user_id", user_id);
             editor.apply();
 
             initializeUI();
@@ -248,6 +254,68 @@ public class MainActivity extends AppCompatActivity
             TextView navBarSummary = (TextView) header.findViewById(R.id.navBarSummary);
             navBarSummary.setText(userID);
         }
+    }
+
+    private String generateRandomString() {
+        char[] chars = "abcdefghijklmnopqrstuvwxyz0123456789".toCharArray();
+        StringBuilder sb = new StringBuilder();
+        Random random = new Random();
+        for (int i = 0; i < 32; i++) {
+            char c = chars[random.nextInt(chars.length)];
+            sb.append(c);
+        }
+        return sb.toString();
+    }
+
+    // http://stackoverflow.com/a/6457017/5572217
+    private String getSignature(String url, String params) throws IOException, InvalidKeyException, NoSuchAlgorithmException {
+        /**
+         * base string has three parts, they are connected by "&":
+         * 1) protocol
+         * 2) URL (needs to be URLEncoded)
+         * 3) parameter list (needs to be URLEncoded).
+         */
+        StringBuilder base = new StringBuilder();
+        base.append("GET&");
+        base.append(url);
+        base.append("&");
+        base.append(params);
+
+        byte[] keyBytes = (WithingsAPI.API_SECRET + "&" + accessTokenSecret).getBytes(ENC);
+        SecretKey key = new SecretKeySpec(keyBytes, "HmacSHA1");
+        Mac mac = Mac.getInstance("HmacSHA1");
+        mac.init(key);
+
+        // encode it, base64 it, change it to string and return
+        byte[] bytes = mac.doFinal(base.toString().getBytes(ENC));
+        return Base64.encodeToString(bytes, Base64.DEFAULT).trim();
+    }
+
+    private void signRequest() throws IOException, InvalidKeyException, NoSuchAlgorithmException {
+
+        String oauth_nonce = generateRandomString();
+
+        String params = "action=getmeas&" +
+                "oauth_consumer_key=" + WithingsAPI.API_KEY + "&" +
+                "oauth_nonce=" + oauth_nonce + "&" +
+                "oauth_signature_method=HMAC-SHA1&" +
+                "oauth_timestamp=" + (System.currentTimeMillis() / 1000) + "&" +
+                "oauth_token=" + accessTokenKey + "&" +
+                "oauth_version=1.0&" +
+                "userid=" + user_id;
+
+        // generate the oauth_signature
+        // http://stackoverflow.com/a/6457017/5572217
+        String signature = getSignature(
+                URLEncoder.encode("http://wbsapi.withings.net/measure", ENC),
+                URLEncoder.encode(params, ENC)
+        );
+
+        Uri uri = Uri.parse("http://wbsapi.withings.net/measure?" + params + "&oauth_signature=" + signature);
+
+//        URLConnection urlConnection = new URL(uri.toString()).openConnection();
+//        InputStream in = urlConnection.getInputStream();
+
     }
 
     private void populateListViewFromDB(SQLiteDatabase db) {
