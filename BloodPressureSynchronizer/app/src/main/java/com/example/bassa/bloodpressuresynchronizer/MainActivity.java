@@ -256,6 +256,7 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
+    // http://stackoverflow.com/a/5683362/5572217
     private String generateRandomString() {
         char[] chars = "abcdefghijklmnopqrstuvwxyz0123456789".toCharArray();
         StringBuilder sb = new StringBuilder();
