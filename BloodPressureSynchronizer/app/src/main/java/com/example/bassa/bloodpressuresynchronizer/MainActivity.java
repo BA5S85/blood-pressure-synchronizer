@@ -15,6 +15,7 @@ import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Base64;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
@@ -27,11 +28,19 @@ import com.github.scribejava.core.model.OAuth1AccessToken;
 import com.github.scribejava.core.model.OAuth1RequestToken;
 import com.github.scribejava.core.oauth.OAuth10aService;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
+import java.net.URL;
+import java.net.URLConnection;
 import java.net.URLEncoder;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.Random;
 
 import javax.crypto.Mac;
@@ -41,6 +50,8 @@ import javax.crypto.spec.SecretKeySpec;
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
+    private DatabaseHelper dbHelper;
+    private SQLiteDatabase db;
     private DBCursorAdapter databaseCursorAdapter;
 
     private static NavigationView navigationView;
@@ -82,7 +93,6 @@ public class MainActivity extends AppCompatActivity
                     .apiSecret(WithingsAPI.API_SECRET)
                     .build(WithingsAPI.instance());
             accessToken = new OAuth1AccessToken(accessTokenKey, accessTokenSecret);
-
             initializeUI();
         }
     }
@@ -146,72 +156,21 @@ public class MainActivity extends AppCompatActivity
         updateNavBarInfo(prefs, "user_name");
         updateNavBarInfo(prefs, "user_id");
 
-        final DatabaseHelper dbHelper = new DatabaseHelper(MainActivity.this); // create a database helper
-        final SQLiteDatabase db = dbHelper.getWritableDatabase(); // get the data repository in write mode
-        populateListViewFromDB(db); // get the data from database and show it in the UI
+        dbHelper = new DatabaseHelper(MainActivity.this); // create a database helper
+        db = dbHelper.getWritableDatabase(); // get the data repository in write mode
 
-        // Start initializing views
-
-        final LinearLayout bottomBtns = (LinearLayout) findViewById(R.id.bottomBtns);
-
-        final Button selectEntriesBtn = (Button) findViewById(R.id.selectEntriesBtn);
-        selectEntriesBtn.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                // Tell the adapter to show the checkboxes
-                databaseCursorAdapter.setCheckBoxesShown(true);
-                databaseCursorAdapter.notifyDataSetChanged();
-
-                // Remove yourself
-                v.setVisibility(View.GONE);
-
-                // Add 'Cancel', 'Send to doctor' and 'Delete' buttons instead
-                bottomBtns.setVisibility(View.VISIBLE);
-            }
-        });
-
-        final Button cancelBtn = (Button) findViewById(R.id.cancelBtn);
-        cancelBtn.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                // Tell the adapter to hide the checkboxes
-                databaseCursorAdapter.setCheckBoxesShown(false);
-                databaseCursorAdapter.notifyDataSetChanged();
-
-                // Remove yourself
-                bottomBtns.setVisibility(View.GONE);
-
-                // Add 'Select entries' button instead
-                selectEntriesBtn.setVisibility(View.VISIBLE);
-            }
-        });
-
-        Button deleteBtn = (Button) findViewById(R.id.deleteBtn);
-        deleteBtn.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                // Remove the rows from our database
-                ArrayList<Boolean> checkedBoxes = databaseCursorAdapter.getCheckedBoxes();
-                int n = checkedBoxes.size();
-                for (int i = 0; i < n; i++) {
-                    if (checkedBoxes.get(i)) {
-                        long id = databaseCursorAdapter.getItemId(i);
-                        dbHelper.delete(db, id);
-                    }
-                }
-
-                // Requery the cursor
-                databaseCursorAdapter.getCursor().requery();
-                cancelBtn.performClick();
-            }
-        });
-    }
-
-    @Override
-    public void onContentChanged() {
-        super.onContentChanged();
-
-        // Shows a message when there are no BP data entries in the database
-        View empty = findViewById(R.id.emptyLabel);
-        ListView list = (ListView) findViewById(R.id.listView);
-        list.setEmptyView(empty);
+        try {
+            Uri uri = signRequestAndGetURI();
+            openConnectionAndGetJSON.execute(uri);
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        } catch (InvalidKeyException e) {
+            e.printStackTrace();
+        } catch (RuntimeException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -269,7 +228,7 @@ public class MainActivity extends AppCompatActivity
     }
 
     // http://stackoverflow.com/a/6457017/5572217
-    private String getSignature(String url, String params) throws IOException, InvalidKeyException, NoSuchAlgorithmException {
+    private String getSignature(String url, String params) throws InvalidKeyException, NoSuchAlgorithmException, UnsupportedEncodingException {
         /**
          * base string has three parts, they are connected by "&":
          * 1) protocol
@@ -292,8 +251,7 @@ public class MainActivity extends AppCompatActivity
         return Base64.encodeToString(bytes, Base64.DEFAULT).trim();
     }
 
-    private void signRequest() throws IOException, InvalidKeyException, NoSuchAlgorithmException {
-
+    private Uri signRequestAndGetURI() throws InvalidKeyException, NoSuchAlgorithmException, UnsupportedEncodingException {
         String oauth_nonce = generateRandomString();
 
         String params = "action=getmeas&" +
@@ -312,14 +270,87 @@ public class MainActivity extends AppCompatActivity
                 URLEncoder.encode(params, ENC)
         );
 
-        Uri uri = Uri.parse("http://wbsapi.withings.net/measure?" + params + "&oauth_signature=" + signature);
-
-//        URLConnection urlConnection = new URL(uri.toString()).openConnection();
-//        InputStream in = urlConnection.getInputStream();
-
+        return Uri.parse("http://wbsapi.withings.net/measure?" + params + "&oauth_signature=" + signature);
     }
 
-    private void populateListViewFromDB(SQLiteDatabase db) {
+    AsyncTask<Uri, Void, JSONObject> openConnectionAndGetJSON = new AsyncTask<Uri, Void, JSONObject>() {
+
+        @Override
+        protected JSONObject doInBackground(Uri... uris) throws RuntimeException {
+
+            Uri uri = uris[0];
+            try {
+                URLConnection urlConnection = new URL(uri.toString()).openConnection();
+                InputStream in = urlConnection.getInputStream();
+                BufferedReader r = new BufferedReader(new InputStreamReader(in));
+
+                StringBuilder total = new StringBuilder();
+                String line;
+                while ((line = r.readLine()) != null) {
+                    total.append(line).append('\n');
+                }
+
+                return new JSONObject(total.toString());
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+
+        }
+
+        @Override
+        protected void onPostExecute(JSONObject json) throws RuntimeException {
+            // think of a smart way to add data to db only when it is the first time opening the app and the db is still empty
+            // if you can't think of anything smart, just delete everything we have in the db and call addBPDataToDB(json); every thime the app gets opened
+            populateListViewFromDB();
+            initializeDBCursorAdapterDependentViews();
+        }
+
+    };
+
+    private void addBPDataToDB(JSONObject json) {
+        try {
+
+            JSONArray measuregprs = json.getJSONObject("body").getJSONArray("measuregrps");
+            int len_measuregrps = measuregprs.length();
+
+            for (int i = 0; i < len_measuregrps; i++) {
+
+                JSONObject grp = (JSONObject) measuregprs.get(i);
+                JSONArray measures = grp.getJSONArray("measures");
+                int len_measures = measures.length();
+                if (len_measures != 3) continue; // if the measurement is not BP, but, for example, weight or height, then do not go any further
+
+                int dia = 0;
+                int sys = 0;
+                int pulse = 0;
+
+                for (int j = 0; j < len_measures; j++) { // otherwise go through a BP entry
+
+                    JSONObject measure = (JSONObject) measures.get(j);
+                    String type = measure.getString("type");
+                    int value = measure.getInt("value");
+
+                    if (type.equals("9")) { // Diastolic Blood Pressure (mmHg)
+                        dia = value;
+                    } else if (type.equals("10")) { // Systolic Blood Pressure (mmHg)
+                        sys = value;
+                    } else if (type.equals("11")) { // Heart Pulse (bpm)
+                        pulse = value;
+                    }
+
+                }
+
+                long id = dbHelper.insert(db, sys, dia, pulse, grp.getString("date"));
+                Log.i("UUE_REA_ID", "" + id);
+
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void populateListViewFromDB() {
         // Define a projection that specifies which columns from the database
         // you will actually use after this query.
         String[] projection = {
@@ -343,26 +374,49 @@ public class MainActivity extends AppCompatActivity
                 sortOrder                                 // The sort order
         );
 
-        String[] columns = {
-                DatabaseContract.BPEntry.COLUMN_NAME_SYS,
-                DatabaseContract.BPEntry.COLUMN_NAME_DIA,
-                DatabaseContract.BPEntry.COLUMN_NAME_PULSE,
-                DatabaseContract.BPEntry.COLUMN_NAME_DATE
-        };
-        int[] IDs = new int[] {R.id.sysRate, R.id.diaRate, R.id.pulseRate, R.id.dateLabel};
-
         // Create an adapter to map values from the DB to the elements in the list view
-        databaseCursorAdapter = new DBCursorAdapter(
-                this,
-                R.layout.entry_layout,
-                c,
-                columns,
-                IDs
-        );
+        databaseCursorAdapter = new DBCursorAdapter(this, c, 0);
+        databaseCursorAdapter.notifyDataSetChanged();
+    }
+
+    private void initializeDBCursorAdapterDependentViews() {
+        listView = (ListView) findViewById(R.id.listView);
+        listView.setEmptyView(findViewById(R.id.emptyLabel));
 
         // Set the adapter for the list view
-        listView = (ListView) findViewById(R.id.listView);
         listView.setAdapter(databaseCursorAdapter);
+
+        final LinearLayout bottomBtns = (LinearLayout) findViewById(R.id.bottomBtns);
+
+        final Button selectEntriesBtn = (Button) findViewById(R.id.selectEntriesBtn);
+        selectEntriesBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                // Tell the adapter to show the checkboxes
+                databaseCursorAdapter.setCheckBoxesShown(true);
+                databaseCursorAdapter.notifyDataSetChanged();
+
+                // Remove yourself
+                v.setVisibility(View.GONE);
+
+                // Add 'Cancel', 'Send to doctor' and 'Delete' buttons instead
+                bottomBtns.setVisibility(View.VISIBLE);
+            }
+        });
+
+        final Button cancelBtn = (Button) findViewById(R.id.cancelBtn);
+        cancelBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                // Tell the adapter to hide the checkboxes
+                databaseCursorAdapter.setCheckBoxesShown(false);
+                databaseCursorAdapter.notifyDataSetChanged();
+
+                // Remove yourself
+                bottomBtns.setVisibility(View.GONE);
+
+                // Add 'Select entries' button instead
+                selectEntriesBtn.setVisibility(View.VISIBLE);
+            }
+        });
     }
 
 }

@@ -6,14 +6,17 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CheckBox;
-import android.widget.SimpleCursorAdapter;
+import android.widget.CursorAdapter;
+import android.widget.TextView;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.TimeZone;
 
-public class DBCursorAdapter extends SimpleCursorAdapter {
+public class DBCursorAdapter extends CursorAdapter {
 
-    private Context context;
-    private Cursor c;
+    private LayoutInflater cursorInflater;
 
     private boolean checkBoxesShown;
 
@@ -21,11 +24,9 @@ public class DBCursorAdapter extends SimpleCursorAdapter {
     // This array will store the state of the each checkbox
     private ArrayList<Boolean> checkedBoxes = new ArrayList<>();
 
-    public DBCursorAdapter(Context context, int layout, Cursor c, String[] from, int[] to) {
-        super(context, layout, c, from, to);
-
-        this.context = context;
-        this.c = c;
+    protected DBCursorAdapter(Context context, Cursor c, int flags) {
+        super(context, c, flags);
+        cursorInflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 
         checkBoxesShown = false;
 
@@ -36,46 +37,63 @@ public class DBCursorAdapter extends SimpleCursorAdapter {
         }
     }
 
-    public View getView(final int pos, View convertView, ViewGroup parent) { // gets called for every single row in a list view before that row is shown to the user
-        LayoutInflater inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+    @Override
+    public void bindView(View view, Context context, Cursor cursor) {
+        TextView sysRate = (TextView) view.findViewById(R.id.sysRate);
+        TextView diaRate = (TextView) view.findViewById(R.id.diaRate);
+        TextView pulseRate = (TextView) view.findViewById(R.id.pulseRate);
+        TextView dateLabel = (TextView) view.findViewById(R.id.dateLabel);
 
-        if (convertView == null) {
-            convertView = inflater.inflate(R.layout.entry_layout, null);
-        } else {
-            CheckBox checkBox = (CheckBox) convertView.findViewById(R.id.checkBox);
+        String sys = cursor.getString(cursor.getColumnIndex(DatabaseContract.BPEntry.COLUMN_NAME_SYS));
+        String dia = cursor.getString(cursor.getColumnIndex(DatabaseContract.BPEntry.COLUMN_NAME_DIA));
+        String pulse = cursor.getString(cursor.getColumnIndex(DatabaseContract.BPEntry.COLUMN_NAME_PULSE));
+        String unixTime = cursor.getString(cursor.getColumnIndex(DatabaseContract.BPEntry.COLUMN_NAME_DATE));
 
-            if (checkBoxesShown) {
-                checkBox.setVisibility(View.VISIBLE);
+        // http://stackoverflow.com/a/17433005/5572217
+        int unixSeconds = Integer.parseInt(unixTime);
+        Date date = new Date(unixSeconds*1000L); // *1000 is to convert seconds to milliseconds
+        SimpleDateFormat sdf = new SimpleDateFormat("dd.MM.yyyy HH:mm"); // the format of your date
+        sdf.setTimeZone(TimeZone.getTimeZone("GMT+2")); // give a timezone reference for formating (see comment at the bottom
+        String formattedDate = sdf.format(date);
 
-                checkBox.setOnClickListener(new View.OnClickListener() {
-                    public void onClick(View v) {
-                        CheckBox checkBox = (CheckBox) v.findViewById(R.id.checkBox);
-                        if (checkBox.isChecked()) {
-                            checkedBoxes.set(pos, true);
-                        } else if (!checkBox.isChecked()) {
-                            checkedBoxes.set(pos, false);
-                        }
+        sysRate.setText(sys);
+        diaRate.setText(dia);
+        pulseRate.setText(pulse);
+        dateLabel.setText(formattedDate);
+
+        CheckBox checkBox = (CheckBox) view.findViewById(R.id.checkBox);
+        final int pos = cursor.getPosition();
+
+        if (checkBoxesShown) {
+            checkBox.setVisibility(View.VISIBLE);
+
+            checkBox.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    CheckBox checkBox = (CheckBox) v.findViewById(R.id.checkBox);
+                    if (checkBox.isChecked()) {
+                        checkedBoxes.set(pos, true);
+                    } else if (!checkBox.isChecked()) {
+                        checkedBoxes.set(pos, false);
                     }
-                });
+                }
+            });
 
-                // Set the state of the checkbox according to what it was before the list view lost its state
-                checkBox.setChecked(checkedBoxes.get(pos));
-            } else {
-                checkedBoxes.set(pos, false);
-                checkBox.setChecked(false);
-                checkBox.setVisibility(View.INVISIBLE);
-            }
+            // Set the state of the checkbox according to what it was before the list view lost its state
+            checkBox.setChecked(checkedBoxes.get(pos));
+        } else {
+            checkedBoxes.set(pos, false);
+            checkBox.setChecked(false);
+            checkBox.setVisibility(View.INVISIBLE);
         }
+    }
 
-        return convertView;
+    @Override
+    public View newView(Context context, Cursor cursor, ViewGroup parent) {
+        return cursorInflater.inflate(R.layout.entry_layout, parent, false);
     }
 
     public void setCheckBoxesShown(boolean b) {
         checkBoxesShown = b;
-    }
-
-    public ArrayList<Boolean> getCheckedBoxes() {
-        return checkedBoxes;
     }
 
 }
