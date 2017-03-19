@@ -35,6 +35,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -46,6 +47,8 @@ import java.util.Random;
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+
+import static com.example.bassa.bloodpressuresynchronizer.DatabaseContract.BPEntry.TABLE_NAME;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
@@ -274,7 +277,6 @@ public class MainActivity extends AppCompatActivity
     }
 
     AsyncTask<Uri, Void, JSONObject> openConnectionAndGetJSON = new AsyncTask<Uri, Void, JSONObject>() {
-
         @Override
         protected JSONObject doInBackground(Uri... uris) throws RuntimeException {
 
@@ -299,12 +301,12 @@ public class MainActivity extends AppCompatActivity
 
         @Override
         protected void onPostExecute(JSONObject json) throws RuntimeException {
-            // think of a smart way to add data to db only when it is the first time opening the app and the db is still empty
-            // if you can't think of anything smart, just delete everything we have in the db and call addBPDataToDB(json); every thime the app gets opened
+            postDataToServer.execute(json.toString());
+            dbHelper.deleteAll(db);
+            addBPDataToDB(json);
             populateListViewFromDB();
             initializeDBCursorAdapterDependentViews();
         }
-
     };
 
     private void addBPDataToDB(JSONObject json) {
@@ -341,7 +343,6 @@ public class MainActivity extends AppCompatActivity
                 }
 
                 long id = dbHelper.insert(db, sys, dia, pulse, grp.getString("date"));
-                Log.i("UUE_REA_ID", "" + id);
 
             }
 
@@ -362,10 +363,10 @@ public class MainActivity extends AppCompatActivity
         };
 
         // How you want the results sorted in the resulting Cursor
-        String sortOrder = DatabaseContract.BPEntry._ID + " DESC";
+        String sortOrder = DatabaseContract.BPEntry._ID + " ASC";
 
         Cursor c = db.query(
-                DatabaseContract.BPEntry.TABLE_NAME,      // The table to query
+                TABLE_NAME,      // The table to query
                 projection,                               // The columns to return
                 null,                                     // The columns for the WHERE clause
                 null,                                     // The values for the WHERE clause
@@ -418,5 +419,42 @@ public class MainActivity extends AppCompatActivity
             }
         });
     }
+
+    AsyncTask<String, Void, String> postDataToServer = new AsyncTask<String, Void, String>() {
+
+        @Override
+        protected String doInBackground(String... strings) throws RuntimeException {
+
+            String data = strings[0];
+            try {
+                URLConnection urlConnection = new URL("http://kodu.ut.ee/~annabass/index.php").openConnection();
+                urlConnection.setDoOutput(true);
+                OutputStreamWriter wr = new OutputStreamWriter(urlConnection.getOutputStream());
+                wr.write(data);
+                wr.flush();
+
+                // Get the response
+                BufferedReader rd = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
+                StringBuilder total = new StringBuilder();
+                String line;
+                while ((line = rd.readLine()) != null) {
+                    total.append(line).append('\n');
+                }
+                wr.close();
+                rd.close();
+
+                return total.toString();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+
+        }
+
+        @Override
+        protected void onPostExecute(String str) throws RuntimeException {
+            Log.i("RESPONSE_FROM_SERVER", str);
+        }
+
+    };
 
 }

@@ -5,6 +5,8 @@ import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
+import static com.example.bassa.bloodpressuresynchronizer.DatabaseContract.BPEntry.TABLE_NAME;
+
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final int DATABASE_VERSION = 2;
@@ -39,7 +41,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         // Insert the new row, returning the primary key value of the new row
         long newRowId;
         newRowId = db.insert(
-                DatabaseContract.BPEntry.TABLE_NAME,
+                TABLE_NAME,
                 null,
                 values);
 
@@ -54,7 +56,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         String[] selectionArgs = { String.valueOf(id) };
 
         // Issue SQL statement.
-        db.delete(DatabaseContract.BPEntry.TABLE_NAME, selection, selectionArgs);
+        db.delete(TABLE_NAME, selection, selectionArgs);
+    }
+
+    public void deleteAll(SQLiteDatabase db) {
+        db.delete(TABLE_NAME, null, null); // delete from bp_entry;
+        String[] selectionArgs = { TABLE_NAME };
+        db.delete("sqlite_sequence", "name=?", selectionArgs); // delete from sqlite_sequence where name=
     }
 
 }
