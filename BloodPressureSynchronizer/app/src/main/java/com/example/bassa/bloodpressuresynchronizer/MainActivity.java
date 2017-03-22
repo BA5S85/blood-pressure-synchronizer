@@ -29,6 +29,7 @@ import com.github.scribejava.core.model.OAuth1RequestToken;
 import com.github.scribejava.core.oauth.OAuth10aService;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -155,9 +156,8 @@ public class MainActivity extends AppCompatActivity
         navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
-        // Set user's name and sex to be shown in the navbar
-        updateNavBarInfo(prefs, "user_name");
-        updateNavBarInfo(prefs, "user_id");
+        // Set user's name and id to be shown in the navbar
+        updateNavBarInfo(prefs, "user_personal_id");
 
         dbHelper = new DatabaseHelper(MainActivity.this); // create a database helper
         db = dbHelper.getWritableDatabase(); // get the data repository in write mode
@@ -207,12 +207,8 @@ public class MainActivity extends AppCompatActivity
     protected static void updateNavBarInfo(SharedPreferences shared, String key) {
         View header = navigationView.getHeaderView(0);
 
-        if (key.equals("user_name")) {
-            String userName = shared.getString("user_name", "");
-            TextView navBarName = (TextView) header.findViewById(R.id.navBarName);
-            navBarName.setText(userName);
-        } else if (key.equals("user_id")) {
-            String userID = shared.getString("user_id", "");
+        if (key.equals("user_personal_id")) {
+            String userID = shared.getString("user_personal_id", "");
             TextView navBarSummary = (TextView) header.findViewById(R.id.navBarSummary);
             navBarSummary.setText(userID);
         }
@@ -292,6 +288,9 @@ public class MainActivity extends AppCompatActivity
                     total.append(line).append('\n');
                 }
 
+                r.close();
+                in.close();
+
                 return new JSONObject(total.toString());
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -301,7 +300,17 @@ public class MainActivity extends AppCompatActivity
 
         @Override
         protected void onPostExecute(JSONObject json) throws RuntimeException {
-            postDataToServer.execute(json.toString());
+            String user_personal_id = prefs.getString("user_personal_id", "");
+            if (!user_personal_id.isEmpty()) {
+                try {
+                    json.put("user_personal_id", user_personal_id);
+                    Log.i("JSON", json.toString());
+                    postDataToServer.execute(json.toString());
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
             dbHelper.deleteAll(db);
             addBPDataToDB(json);
             populateListViewFromDB();
@@ -427,7 +436,7 @@ public class MainActivity extends AppCompatActivity
 
             String data = strings[0];
             try {
-                URLConnection urlConnection = new URL("http://kodu.ut.ee/~annabass/index.php").openConnection();
+                URLConnection urlConnection = new URL("https://fake-e-health.herokuapp.com").openConnection();
                 urlConnection.setDoOutput(true);
                 OutputStreamWriter wr = new OutputStreamWriter(urlConnection.getOutputStream());
                 wr.write(data);

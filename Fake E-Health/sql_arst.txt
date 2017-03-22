@@ -1,0 +1,8 @@
+CREATE TABLE Arst (
+    Isikukood VARCHAR(11) NOT NULL,
+	Eesnimi VARCHAR(255) NOT NULL,
+	Perekonnanimi VARCHAR(255) NOT NULL,
+	Patsiendi_isikukood VARCHAR(11) NOT NULL,
+	PRIMARY KEY (Isikukood),
+    FOREIGN KEY (Patsiendi_isikukood) REFERENCES Patsient(Isikukood)
+);

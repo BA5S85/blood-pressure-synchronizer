@@ -6,22 +6,8 @@
         android:title="Minu andmed"
         android:key="pref_key_storage_settings">
         <EditTextPreference
-            android:key="user_name"
-            android:title="Minu ees- ja perekonnanimi" />
-        <EditTextPreference
-            android:key="user_id"
+            android:key="user_personal_id"
             android:title="Minu isikukood" />
-    </PreferenceCategory>
-
-    <PreferenceCategory
-        android:title="Minu arsti andmed"
-        android:key="pref_key_storage_settings">
-        <EditTextPreference
-            android:key="user_doctor_name"
-            android:title="Arsti ees- ja perekonnanimi" />
-        <EditTextPreference
-            android:key="user_doctor_email"
-            android:title="Arsti e-maili aadress" />
     </PreferenceCategory>
 
 </PreferenceScreen>

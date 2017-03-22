@@ -1,0 +1,9 @@
+CREATE TABLE M66tmine (
+	Aeg TIMESTAMP NOT NULL DEFAULT '0000-00-00 00:00:00',
+	Patsiendi_isikukood VARCHAR(11) NOT NULL,
+	Systoolne INT NOT NULL,
+	Diastoolne INT NOT NULL,
+	Pulss INT NOT NULL,
+	PRIMARY KEY (Aeg),
+	FOREIGN KEY (Patsiendi_isikukood) REFERENCES Patsient(Isikukood)
+);
