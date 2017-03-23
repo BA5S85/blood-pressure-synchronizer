@@ -1,84 +1,103 @@
-<html>
-	<head>
-		<title>Minu-tervis</title>
-	</head>
-	<body>
-		<p>Tere tulemast!</p>
+<!DOCTYPE html>
+<html lang="et">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Minu-tervis</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="stylesheet.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+    <script src="script.js"></script>
+</head>
+<body>
 
-		<?php
-		$url = parse_url(getenv("CLEARDB_DATABASE_URL"));
+    <div id="wrap">
 
-		$server = $url["host"];
-		$username = $url["user"];
-		$password = $url["pass"];
-		$db = substr($url["path"], 1);
+        <div class="jumbotron">
+            <div class="container">
+                <h1>Tere tulemast Minu-tervisesse!</h1>
+                <p style="margin-left: 12px;">Minu-tervis on veebisüsteem, mis kogub sinu terviseandmeid.</p>
+            </div>
+        </div>
 
-		$conn = new mysqli($server, $username, $password, $db);
-		if ($conn->connect_error) {
-		    die("Connection failed: " . $conn->connect_error);
-		}
+        <div class="container">
 
-		$json = file_get_contents("php://input");
-		$obj = json_decode($json, true);
+            <div class="dropdown text-right">
+                <button class="btn btn-default dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+                    Muuda vaade...
+                    <span class="caret"></span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenu1">
+                    <li id="patsiendi-vaade"><a href="#">Patsiendi vaade</a></li>
+                    <li id="arsti-vaade"><a href="#">Arsti vaade</a></li>
+                </ul>
+            </div>
 
-	    $user_personal_id = $obj["user_personal_id"];
+            <?php
 
-	    $measuregrps = $obj["body"]["measuregrps"];
-	    $n = count($measuregrps);
-	  	for ($i = 0; $i < $n; $i++) {
-	  		$grp = $measuregrps[$i];
+            require("db.php");
 
-	  		$date = $grp["date"];
+            // if the mobile app sent us new data, then parse it and add to db
+            if ($json = file_get_contents("php://input") !== false){
 
-	  		$sys = 0;
-	  		$dia = 0;
-	  		$pulse = 0;
+                $obj = json_decode($json, true);
 
-		    $measures = $grp["measures"];
-		    $m = count($measures);
-		    if ($m == 3) {
-		    	for ($j = 0; $j < $m; $j++) {
-		    		$measure = $measures[$j];
+                $user_personal_id = $obj["user_personal_id"];
 
-		    		$type = $measure["type"];
-		    		$value = $measure["value"];
-		    		if ($type == "9") {
-		    			$dia = $value;
-		    		} else if ($type == "10") {
-		    			$sys = $value;
-		    		} else if ($type == "11") {
-		    			$pulse = $value;
-		    		}
-		    	}
-		    	
-		    	$sql = "INSERT IGNORE INTO M66tmine VALUES ( FROM_UNIXTIME(" . $date . "), " . $user_personal_id . ", " . $sys . ", " . $dia . ", " . $pulse . " );";
-		    	if ($conn->query($sql) === TRUE) {
-				    echo "Successfully added BP data entry to db...";
-				} else {
-					echo mysqli_error($conn) . "<br>";
-				}
-		    }
-		}
+                $measuregrps = $obj["body"]["measuregrps"];
+                $n = count($measuregrps);
+                for ($i = 0; $i < $n; $i++) {
+                    $grp = $measuregrps[$i];
 
-		print_r("all ok1<br>");
+                    $date = $grp["date"];
 
-		$sql = "SELECT * FROM M66tmine;";
-        $result = $conn->query($sql);
-        
-        print_r("all ok2<br>");
+                    $sys = 0;
+                    $dia = 0;
+                    $pulse = 0;
 
-        if ($result->num_rows > 0) {
-        	print_r("all ok3<br>");
-            while($row = $result->fetch_assoc()) {
-                echo $row["Aeg"] . " " . $row["Patsiendi_isikukood"] . " " . $row["Systoolne"] . " " . $row["Diastoolne"] . " " . $row["Pulss"] . "<br>";
+                    $measures = $grp["measures"];
+                    $m = count($measures);
+                    if ($m == 3) {
+                        for ($j = 0; $j < $m; $j++) {
+                            $measure = $measures[$j];
+
+                            $type = $measure["type"];
+                            $value = $measure["value"];
+                            if ($type == "9") {
+                                $dia = $value;
+                            } else if ($type == "10") {
+                                $sys = $value;
+                            } else if ($type == "11") {
+                                $pulse = $value;
+                            }
+                        }
+
+                        $sql = "INSERT IGNORE INTO M66tmine VALUES ( FROM_UNIXTIME(" . $date . "), " . $user_personal_id . ", " . $sys . ", " . $dia . ", " . $pulse . " );";
+                        if ($conn->query($sql) === TRUE) {
+                            echo "Successfully added BP data entry to db...<br>";
+                        } else {
+                            echo "Could not add BP data to db: " . mysqli_error($conn) . "<br>";
+                        }
+                    }
+                }
+
             }
-            print_r("all ok4<br>");
-        } else {
-            echo "0 results<br>";
-        }
 
-		$conn->close();
-		?>
+            $conn->close();
 
-	</body>
+            ?>
+
+            <div id='view'></div>
+
+        </div>
+
+    </div>
+
+    <div class="text-right" id="footer">
+        <p>Anna Bass</p>
+    </div>
+
+</body>
 </html>
