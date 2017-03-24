@@ -1,5 +1,8 @@
 package com.example.bassa.bloodpressuresynchronizer;
 
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
@@ -163,8 +166,18 @@ public class MainActivity extends AppCompatActivity
         db = dbHelper.getWritableDatabase(); // get the data repository in write mode
 
         try {
+
             Uri uri = signRequestAndGetURI();
             openConnectionAndGetJSON.execute(uri);
+
+            // fire a notification
+            // http://stackoverflow.com/a/22279317/5572217
+            Intent notificationIntent = new Intent(MainActivity.this, NotificationService.class);
+            PendingIntent contentIntent = PendingIntent.getService(MainActivity.this, 0, notificationIntent, PendingIntent.FLAG_CANCEL_CURRENT);
+            AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+            am.cancel(contentIntent);
+            am.setRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + AlarmManager.INTERVAL_FIFTEEN_MINUTES, AlarmManager.INTERVAL_FIFTEEN_MINUTES, contentIntent);
+
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         } catch (UnsupportedEncodingException e) {
