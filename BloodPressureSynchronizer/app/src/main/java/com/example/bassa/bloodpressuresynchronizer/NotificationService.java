@@ -6,6 +6,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.BitmapFactory;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
@@ -14,7 +15,7 @@ import android.util.Log;
 public class NotificationService extends Service {
 
     @Override
-    public void onCreate() {
+    public void onStart(Intent intent, int startId) {
         super.onCreate();
 
         Intent mainIntent = new Intent(this, MainActivity.class);
@@ -23,12 +24,14 @@ public class NotificationService extends Service {
         Notification notification = new NotificationCompat.Builder(this)
                 .setAutoCancel(true)
                 .setContentIntent(PendingIntent.getActivity(this, 0, mainIntent, PendingIntent.FLAG_UPDATE_CURRENT))
-                .setContentTitle("Tere! Kell on " + System.currentTimeMillis() + ".")
-                .setContentText("See tähendab, et paras aeg on mõõta vererõhku!")
-                .setSmallIcon(R.mipmap.icon)
+                .setContentTitle("Paras aeg on mõõta vererõhku!")
+                .setContentText("Ole tubli ja soorita mõõtmine.")
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher))
                 .setDefaults(Notification.DEFAULT_ALL)
-                .setTicker("Tere! Kell on " + System.currentTimeMillis() + ", mis tähendab et paras aeg on mõõta vererõhku!")
+                .setTicker("Paras aeg on mõõta vererõhku!")
                 .setWhen(System.currentTimeMillis())
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .build();
         notificationManager.notify(0, notification);
 
@@ -39,4 +42,5 @@ public class NotificationService extends Service {
     public IBinder onBind(Intent intent) {
         return null;
     }
+
 }

@@ -46,6 +46,7 @@ import java.net.URLConnection;
 import java.net.URLEncoder;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Calendar;
 import java.util.Random;
 
 import javax.crypto.Mac;
@@ -160,6 +161,8 @@ public class MainActivity extends AppCompatActivity
         navigationView.setNavigationItemSelectedListener(this);
 
         // Set user's name and id to be shown in the navbar
+        updateNavBarInfo(prefs, "user_first_name");
+        updateNavBarInfo(prefs, "user_last_name");
         updateNavBarInfo(prefs, "user_personal_id");
 
         dbHelper = new DatabaseHelper(MainActivity.this); // create a database helper
@@ -170,13 +173,39 @@ public class MainActivity extends AppCompatActivity
             Uri uri = signRequestAndGetURI();
             openConnectionAndGetJSON.execute(uri);
 
-            // fire a notification
-            // http://stackoverflow.com/a/22279317/5572217
-            Intent notificationIntent = new Intent(MainActivity.this, NotificationService.class);
-            PendingIntent contentIntent = PendingIntent.getService(MainActivity.this, 0, notificationIntent, PendingIntent.FLAG_CANCEL_CURRENT);
+            // start firing notifications
+            // http://stackoverflow.com/a/16871244/5572217
+            // http://karanbalkar.com/2013/07/tutorial-41-using-alarmmanager-and-broadcastreceiver-in-android/
+
+            Intent intent = new Intent(MainActivity.this, MyReceiver.class);
+            PendingIntent pendingIntent = PendingIntent.getBroadcast(MainActivity.this, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+
             AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-            am.cancel(contentIntent);
-            am.setRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + AlarmManager.INTERVAL_FIFTEEN_MINUTES, AlarmManager.INTERVAL_FIFTEEN_MINUTES, contentIntent);
+            am.cancel(pendingIntent);
+
+            Calendar firingCal = Calendar.getInstance();
+            Calendar currentCal = Calendar.getInstance();
+
+            firingCal.set(Calendar.HOUR_OF_DAY, 10); // At the hour you wanna fire
+            firingCal.set(Calendar.MINUTE, 0); // Particular minute
+            firingCal.set(Calendar.SECOND, 0);
+
+//            Log.i("CALENDAR", new SimpleDateFormat("yyyy.MM.dd HH:mm:ss z").format(firingCal.getTime()));
+//            Log.i("CALENDAR", new SimpleDateFormat("yyyy.MM.dd HH:mm:ss z").format(currentCal.getTime()));
+
+            long intendedTime = firingCal.getTimeInMillis();
+            long currentTime = currentCal.getTimeInMillis();
+
+            if (intendedTime >= currentTime) { // 8.32, 9.57, etc.
+                am.setRepeating(AlarmManager.RTC_WAKEUP, intendedTime, 60000*60, pendingIntent); // 60000 is one minute, 60000*60 is 60 minutes
+            } else { // 18.30, 20.19
+                int hours = currentCal.get(Calendar.HOUR_OF_DAY); // 18, 19
+
+                firingCal.set(Calendar.HOUR_OF_DAY, hours + 1);
+
+                intendedTime = firingCal.getTimeInMillis();
+                am.setRepeating(AlarmManager.RTC_WAKEUP, intendedTime, 60000*60, pendingIntent);
+            }
 
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
@@ -224,6 +253,11 @@ public class MainActivity extends AppCompatActivity
             String userID = shared.getString("user_personal_id", "");
             TextView navBarSummary = (TextView) header.findViewById(R.id.navBarSummary);
             navBarSummary.setText(userID);
+        } else if (key.equals("user_first_name") || key.equals("user_last_name")) {
+            String firstName = shared.getString("user_first_name", "");
+            String lastName = shared.getString("user_last_name", "");
+            TextView navBarName = (TextView) header.findViewById(R.id.navBarName);
+            navBarName.setText(firstName + " " + lastName);
         }
     }
 
