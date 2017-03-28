@@ -3,6 +3,7 @@ package com.example.bassa.bloodpressuresynchronizer;
 import android.app.Application;
 import android.content.Context;
 
+// http://stackoverflow.com/a/5114361/5572217
 public class MyApplication extends Application {
 
     private static Context context;

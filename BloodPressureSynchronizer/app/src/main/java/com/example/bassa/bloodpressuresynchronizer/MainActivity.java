@@ -77,7 +77,7 @@ public class MainActivity extends AppCompatActivity
     private SQLiteDatabase db;
     private DBCursorAdapter databaseCursorAdapter;
 
-    private static boolean NOTIFICATIONS_ON = false;
+    private static TextView personalIDMessage;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -156,15 +156,6 @@ public class MainActivity extends AppCompatActivity
         drawer.setDrawerListener(toggle);
         toggle.syncState();
 
-        navigationView = (NavigationView) findViewById(R.id.nav_view);
-        navigationView.setNavigationItemSelectedListener(this);
-
-        // Set user's name and id to be shown in the navbar
-        updateStuff(prefs, "user_first_name");
-        updateStuff(prefs, "user_last_name");
-        updateStuff(prefs, "user_personal_id");
-        updateStuff(prefs, "notifications_on");
-
         dbHelper = new DatabaseHelper(MainActivity.this); // create a database helper
         db = dbHelper.getWritableDatabase(); // get the data repository in write mode
 
@@ -172,8 +163,19 @@ public class MainActivity extends AppCompatActivity
 
             Uri uri = signRequestAndGetURI();
             openConnectionAndGetJSON.execute(uri);
-            if (NOTIFICATIONS_ON) initializeNotifications(true);
-            else initializeNotifications(false);
+
+            // while network stuff is doing its thing in the background, initialize other views
+
+            navigationView = (NavigationView) findViewById(R.id.nav_view);
+            navigationView.setNavigationItemSelectedListener(this);
+
+            personalIDMessage = (TextView) findViewById(R.id.personalIDMessage);
+
+            // Set user's name and id to be shown in the navbar
+            updateStuff(prefs, "user_first_name");
+            updateStuff(prefs, "user_last_name");
+            updateStuff(prefs, "user_personal_id");
+            updateStuff(prefs, "notifications_on");
 
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
@@ -222,6 +224,13 @@ public class MainActivity extends AppCompatActivity
             String userID = shared.getString(key, "");
             TextView navBarSummary = (TextView) header.findViewById(R.id.navBarSummary);
             navBarSummary.setText(userID);
+
+            if (!shared.getString("user_personal_id", "").isEmpty()) {
+                // removes the annoying orange message
+                personalIDMessage.setVisibility(View.GONE);
+            } else {
+                personalIDMessage.setVisibility(View.VISIBLE);
+            }
         } else if (key.equals("user_first_name") || key.equals("user_last_name")) {
             String firstName = shared.getString("user_first_name", "");
             String lastName = shared.getString("user_last_name", "");
@@ -229,11 +238,9 @@ public class MainActivity extends AppCompatActivity
             navBarName.setText(firstName + " " + lastName);
         } else if (key.equals("notifications_on")) {
             if (shared.getBoolean(key, false)) {
-                NOTIFICATIONS_ON = true;
                 initializeNotifications(true);
                 Log.i("NOTIFICATIONS", "ON");
             } else {
-                NOTIFICATIONS_ON = false;
                 initializeNotifications(false);
                 Log.i("NOTIFICATIONS", "OFF");
             }

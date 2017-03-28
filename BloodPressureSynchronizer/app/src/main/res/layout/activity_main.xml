@@ -42,17 +42,25 @@
             app:layout_behavior="@string/appbar_scrolling_view_behavior"
             tools:context="com.example.bassa.bloodpressuresynchronizer.MainActivity">
 
+            <TextView
+                android:id="@+id/personalIDMessage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/colorAccent"
+                android:minLines="2"
+                android:paddingBottom="16dp"
+                android:text="Hea kasutaja! Palun võta lahti vasakpoolne külgriba, mine Minu kontaktandmetesse ja sisesta oma isikukood, muidu me ei saa su andmeid Minu-tervisesse saata." />
+
             <ListView
                 android:id="@+id/listView"
                 android:orientation="vertical"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 android:layout_marginBottom="5dp"/>
 
             <TextView
                 android:id="@+id/emptyLabel"
-                android:text="Hea sõber! Sul puuduvad andmed vererõhu mõõtmiste kohta. Andmete lisamiseks on sul kaks võimalust:\r\n\r\n1. Sa võid seadistada, et see mobiilirakendus mõõdaks su vererõhku ise. Selleks tee lahti vasakpoolne külgriba ja mine seadetesse. Sealt otsi üles 'Vererõhu automaatne mõõtmine' ja lülita see sisse. Kõik! Enam ei pea midagi tegema, sest rakendus teeb kogu töö sinu eest ära.\r\n\r\n2. Sa võid mõõta enda vererõhku siis, kui ise tahad. Selleks vajuta allolevale + nupule, loe juhendit ja edasi tegutse nii, nagu seal kirjas on.\r\n\r\nHead mõõtmist!"
+                android:text="Hea kasutaja! Sul puuduvad andmed vererõhu mõõtmiste kohta. Palun kasuta oma Withings seadet, et oma vererõhku mõõta."
                 android:layout_width="fill_parent"
                 android:layout_height="fill_parent"
                 android:gravity="center"
