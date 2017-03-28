@@ -3,14 +3,16 @@ package com.example.bassa.bloodpressuresynchronizer;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.EditTextPreference;
+import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceGroup;
+import android.preference.SwitchPreference;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.view.MenuItem;
 
-public class PersonalInfoActivity extends AppCompatActivity {
+public class SettingsActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -26,7 +28,7 @@ public class PersonalInfoActivity extends AppCompatActivity {
 
         // Display the fragment as the main content.
         getFragmentManager().beginTransaction()
-                .replace(android.R.id.content, new PersonalInfoFragment())
+                .replace(android.R.id.content, new SettingsFragment())
                 .commit();
     }
 
@@ -41,7 +43,7 @@ public class PersonalInfoActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    public static class PersonalInfoFragment extends PreferenceFragment implements SharedPreferences.OnSharedPreferenceChangeListener {
+    public static class SettingsFragment extends PreferenceFragment implements SharedPreferences.OnSharedPreferenceChangeListener {
 
         private SharedPreferences sharedPreferences;
 
@@ -50,7 +52,7 @@ public class PersonalInfoActivity extends AppCompatActivity {
             super.onCreate(savedInstanceState);
 
             // Load the preferences from an XML resource
-            addPreferencesFromResource(R.xml.personal_info);
+            addPreferencesFromResource(R.xml.settings);
 
             sharedPreferences = getPreferenceManager().getSharedPreferences();
 
@@ -90,12 +92,24 @@ public class PersonalInfoActivity extends AppCompatActivity {
         }
 
         private void updatePrefSummary(Preference p) {
+            SharedPreferences.Editor editor = sharedPreferences.edit();
+
             if (p instanceof EditTextPreference) {
                 EditTextPreference editTextPref = (EditTextPreference) p;
                 p.setSummary(editTextPref.getText());
 
-                SharedPreferences.Editor editor = sharedPreferences.edit();
                 editor.putString(editTextPref.getKey(), editTextPref.getText());
+                editor.apply();
+            } else if (p instanceof ListPreference) {
+                ListPreference listPref = (ListPreference) p;
+                p.setSummary(listPref.getEntry());
+
+                editor.putString(listPref.getKey(), listPref.getValue());
+                editor.apply();
+            } else if (p instanceof SwitchPreference) {
+                SwitchPreference switchPref = (SwitchPreference) p;
+
+                editor.putBoolean(switchPref.getKey(), switchPref.isChecked());
                 editor.apply();
             }
         }

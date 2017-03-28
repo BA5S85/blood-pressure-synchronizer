@@ -58,27 +58,26 @@ import static com.example.bassa.bloodpressuresynchronizer.DatabaseContract.BPEnt
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
-    private DatabaseHelper dbHelper;
-    private SQLiteDatabase db;
-    private DBCursorAdapter databaseCursorAdapter;
+    private SharedPreferences prefs;
+
+    public static final int AUTHENTICATION_REQUEST = 1;
+    private String user_id;
+    private String oauth_verifier;
+    public static OAuth10aService service;
+    public static OAuth1RequestToken requestToken;
+    private String accessTokenKey, accessTokenSecret;
+    private OAuth1AccessToken accessToken;
+
+    private static final String ENC = "UTF-8";
 
     private static NavigationView navigationView;
     private ListView listView;
 
-    private SharedPreferences prefs;
+    private DatabaseHelper dbHelper;
+    private SQLiteDatabase db;
+    private DBCursorAdapter databaseCursorAdapter;
 
-    public static final int AUTHENTICATION_REQUEST = 1;
-
-    public static OAuth10aService service;
-    public static OAuth1RequestToken requestToken;
-
-    private String accessTokenKey, accessTokenSecret;
-    private OAuth1AccessToken accessToken;
-
-    private String user_id;
-    private String oauth_verifier;
-
-    private static final String ENC = "UTF-8";
+    private static boolean NOTIFICATIONS_ON = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -161,9 +160,10 @@ public class MainActivity extends AppCompatActivity
         navigationView.setNavigationItemSelectedListener(this);
 
         // Set user's name and id to be shown in the navbar
-        updateNavBarInfo(prefs, "user_first_name");
-        updateNavBarInfo(prefs, "user_last_name");
-        updateNavBarInfo(prefs, "user_personal_id");
+        updateStuff(prefs, "user_first_name");
+        updateStuff(prefs, "user_last_name");
+        updateStuff(prefs, "user_personal_id");
+        updateStuff(prefs, "notifications_on");
 
         dbHelper = new DatabaseHelper(MainActivity.this); // create a database helper
         db = dbHelper.getWritableDatabase(); // get the data repository in write mode
@@ -172,40 +172,8 @@ public class MainActivity extends AppCompatActivity
 
             Uri uri = signRequestAndGetURI();
             openConnectionAndGetJSON.execute(uri);
-
-            // start firing notifications
-            // http://stackoverflow.com/a/16871244/5572217
-            // http://karanbalkar.com/2013/07/tutorial-41-using-alarmmanager-and-broadcastreceiver-in-android/
-
-            Intent intent = new Intent(MainActivity.this, MyReceiver.class);
-            PendingIntent pendingIntent = PendingIntent.getBroadcast(MainActivity.this, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
-
-            AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-            am.cancel(pendingIntent);
-
-            Calendar firingCal = Calendar.getInstance();
-            Calendar currentCal = Calendar.getInstance();
-
-            firingCal.set(Calendar.HOUR_OF_DAY, 10); // At the hour you wanna fire
-            firingCal.set(Calendar.MINUTE, 0); // Particular minute
-            firingCal.set(Calendar.SECOND, 0);
-
-//            Log.i("CALENDAR", new SimpleDateFormat("yyyy.MM.dd HH:mm:ss z").format(firingCal.getTime()));
-//            Log.i("CALENDAR", new SimpleDateFormat("yyyy.MM.dd HH:mm:ss z").format(currentCal.getTime()));
-
-            long intendedTime = firingCal.getTimeInMillis();
-            long currentTime = currentCal.getTimeInMillis();
-
-            if (intendedTime >= currentTime) { // 8.32, 9.57, etc.
-                am.setRepeating(AlarmManager.RTC_WAKEUP, intendedTime, 60000*60, pendingIntent); // 60000 is one minute, 60000*60 is 60 minutes
-            } else { // 18.30, 20.19
-                int hours = currentCal.get(Calendar.HOUR_OF_DAY); // 18, 19
-
-                firingCal.set(Calendar.HOUR_OF_DAY, hours + 1);
-
-                intendedTime = firingCal.getTimeInMillis();
-                am.setRepeating(AlarmManager.RTC_WAKEUP, intendedTime, 60000*60, pendingIntent);
-            }
+            if (NOTIFICATIONS_ON) initializeNotifications(true);
+            else initializeNotifications(false);
 
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
@@ -238,7 +206,8 @@ public class MainActivity extends AppCompatActivity
             Intent personalInfoIntent = new Intent(this, PersonalInfoActivity.class);
             startActivity(personalInfoIntent);
         } else if (id == R.id.nav_manage) {
-
+            Intent settingsIntent = new Intent(this, SettingsActivity.class);
+            startActivity(settingsIntent);
         }
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
@@ -246,11 +215,11 @@ public class MainActivity extends AppCompatActivity
         return true;
     }
 
-    protected static void updateNavBarInfo(SharedPreferences shared, String key) {
+    protected static void updateStuff(SharedPreferences shared, String key) {
         View header = navigationView.getHeaderView(0);
 
         if (key.equals("user_personal_id")) {
-            String userID = shared.getString("user_personal_id", "");
+            String userID = shared.getString(key, "");
             TextView navBarSummary = (TextView) header.findViewById(R.id.navBarSummary);
             navBarSummary.setText(userID);
         } else if (key.equals("user_first_name") || key.equals("user_last_name")) {
@@ -258,7 +227,57 @@ public class MainActivity extends AppCompatActivity
             String lastName = shared.getString("user_last_name", "");
             TextView navBarName = (TextView) header.findViewById(R.id.navBarName);
             navBarName.setText(firstName + " " + lastName);
+        } else if (key.equals("notifications_on")) {
+            if (shared.getBoolean(key, false)) {
+                NOTIFICATIONS_ON = true;
+                initializeNotifications(true);
+                Log.i("NOTIFICATIONS", "ON");
+            } else {
+                NOTIFICATIONS_ON = false;
+                initializeNotifications(false);
+                Log.i("NOTIFICATIONS", "OFF");
+            }
         }
+    }
+
+    private static void initializeNotifications(boolean initialize) {
+
+        // initialize firing notifications
+        // http://stackoverflow.com/a/16871244/5572217
+        // http://karanbalkar.com/2013/07/tutorial-41-using-alarmmanager-and-broadcastreceiver-in-android/
+
+        Intent intent = new Intent(MyApplication.getAppContext(), MyReceiver.class);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(MyApplication.getAppContext(), 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+
+        AlarmManager am = (AlarmManager) MyApplication.getAppContext().getSystemService(Context.ALARM_SERVICE);
+        am.cancel(pendingIntent);
+
+        if (initialize) {
+            Calendar firingCal = Calendar.getInstance();
+            Calendar currentCal = Calendar.getInstance();
+
+            firingCal.set(Calendar.HOUR_OF_DAY, 10); // At the hour you wanna fire
+            firingCal.set(Calendar.MINUTE, 0); // Particular minute
+            firingCal.set(Calendar.SECOND, 0);
+
+//            Log.i("CALENDAR", new SimpleDateFormat("yyyy.MM.dd HH:mm:ss z").format(firingCal.getTime()));
+//            Log.i("CALENDAR", new SimpleDateFormat("yyyy.MM.dd HH:mm:ss z").format(currentCal.getTime()));
+
+            long intendedTime = firingCal.getTimeInMillis();
+            long currentTime = currentCal.getTimeInMillis();
+
+            if (intendedTime >= currentTime) { // 8.32, 9.57, etc.
+                am.setRepeating(AlarmManager.RTC_WAKEUP, intendedTime, 60000*60, pendingIntent); // 60000 is one minute, 60000*60 is 60 minutes
+            } else { // 18.30, 20.19
+                int hours = currentCal.get(Calendar.HOUR_OF_DAY); // 18, 19
+
+                firingCal.set(Calendar.HOUR_OF_DAY, hours + 1);
+
+                intendedTime = firingCal.getTimeInMillis();
+                am.setRepeating(AlarmManager.RTC_WAKEUP, intendedTime, 60000*60, pendingIntent);
+            }
+        }
+
     }
 
     // http://stackoverflow.com/a/5683362/5572217
@@ -348,22 +367,29 @@ public class MainActivity extends AppCompatActivity
         @Override
         protected void onPostExecute(JSONObject json) throws RuntimeException {
             String user_personal_id = prefs.getString("user_personal_id", "");
-            if (!user_personal_id.isEmpty()) {
-                try {
-                    json.put("user_personal_id", user_personal_id);
-                    Log.i("JSON", json.toString());
-                    postDataToServer.execute(json.toString());
-                } catch (JSONException e) {
-                    throw new RuntimeException(e);
+            if (newDataAvailable(json)) {
+                if (!user_personal_id.isEmpty()) {
+                    try {
+                        json.put("user_personal_id", user_personal_id);
+                        Log.i("JSON", json.toString());
+                        postDataToServer.execute(json.toString());
+                    } catch (JSONException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
+                dbHelper.deleteAll(db);
+                addBPDataToDB(json);
             }
 
-            dbHelper.deleteAll(db);
-            addBPDataToDB(json);
             populateListViewFromDB();
             initializeDBCursorAdapterDependentViews();
         }
     };
+
+    private boolean newDataAvailable(JSONObject json) {
+        // TODO: add condition to check whether new BP data has been added for the user
+        return true;
+    }
 
     private void addBPDataToDB(JSONObject json) {
         try {

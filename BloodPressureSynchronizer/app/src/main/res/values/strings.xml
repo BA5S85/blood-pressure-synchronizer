@@ -3,4 +3,15 @@
     <string name="navigation_drawer_open">Näita külgriba</string>
     <string name="navigation_drawer_close">Peida külgriba</string>
     <string name="title_activity_main">Vererõhu sünkroniseerija</string>
+    <string name="title_activity_settings">Seaded</string>
+    <string-array name="notification_frequency_entries">
+        <item>Iga tunni tagant</item>
+        <item>Iga kahe tunni tagant</item>
+        <item>Iga kolme tunni tagant</item>
+    </string-array>
+    <string-array name="notification_frequency_values">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+    </string-array>
 </resources>

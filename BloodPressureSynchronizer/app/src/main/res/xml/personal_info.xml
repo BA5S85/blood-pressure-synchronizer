@@ -2,18 +2,14 @@
 <PreferenceScreen
     xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <PreferenceCategory
-        android:title="Minu andmed"
-        android:key="pref_key_storage_settings">
-        <EditTextPreference
-            android:key="user_personal_id"
-            android:title="Minu isikukood" />
-        <EditTextPreference
-            android:key="user_first_name"
-            android:title="Minu nimi" />
-        <EditTextPreference
-            android:key="user_last_name"
-            android:title="Minu perekonnanimi" />
-    </PreferenceCategory>
+    <EditTextPreference
+        android:key="user_personal_id"
+        android:title="Minu isikukood" />
+    <EditTextPreference
+        android:key="user_first_name"
+        android:title="Minu nimi" />
+    <EditTextPreference
+        android:key="user_last_name"
+        android:title="Minu perekonnanimi" />
 
 </PreferenceScreen>
