@@ -40,7 +40,8 @@
             require("db.php");
 
             // if the mobile app sent us new data, then parse it and add to db
-            if ($json = file_get_contents("php://input") !== false){
+            $json = file_get_contents("php://input");
+            if ($json !== false){
 
                 $obj = json_decode($json, true);
 

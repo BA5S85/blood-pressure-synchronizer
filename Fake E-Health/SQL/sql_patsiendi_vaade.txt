@@ -1,0 +1,3 @@
+create view vw_PatsiendiVaade as
+select Patsient.Eesnimi, Patsient.Perekonnanimi, M66tmine.Aeg, M66tmine.Systoolne, M66tmine.Diastoolne, M66tmine.Pulss
+from Patsient join M66tmine on Patsient.Isikukood = M66tmine.Patsiendi_isikukood;

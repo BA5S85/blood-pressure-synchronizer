@@ -3,7 +3,7 @@
 require("db.php");
 
 // show patient view
-$sql = "SELECT * FROM vw_PatsiendiVaade;";
+$sql = "SELECT * FROM vw_PatsiendiVaade ORDER BY Aeg DESC;";
 $result = $conn->query($sql);
 
 if ($result->num_rows > 0) {
@@ -28,5 +28,5 @@ if ($result->num_rows > 0) {
     }
     echo "</table>";
 } else {
-    die("'SELECT * FROM vw_PatsiendiVaade;' query returned 0 rows");
+    die("'SELECT * FROM vw_PatsiendiVaade ORDER BY Aeg DESC;' query returned 0 rows");
 }
