@@ -61,23 +61,24 @@ public class MainActivity extends AppCompatActivity
     private SharedPreferences prefs;
 
     public static final int AUTHENTICATION_REQUEST = 1;
-    private String user_id;
-    private String oauth_verifier;
+
     public static OAuth10aService service;
     public static OAuth1RequestToken requestToken;
+
+    private String user_id;
+    private String oauth_verifier;
     private String accessTokenKey, accessTokenSecret;
     private OAuth1AccessToken accessToken;
 
     private static final String ENC = "UTF-8";
 
     private static NavigationView navigationView;
+    private static TextView personalIDMessage;
     private ListView listView;
 
     private DatabaseHelper dbHelper;
     private SQLiteDatabase db;
     private DBCursorAdapter databaseCursorAdapter;
-
-    private static TextView personalIDMessage;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
