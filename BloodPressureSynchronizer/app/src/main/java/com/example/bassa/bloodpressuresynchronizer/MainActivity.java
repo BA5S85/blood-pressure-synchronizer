@@ -25,6 +25,7 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.github.scribejava.core.builder.ServiceBuilder;
 import com.github.scribejava.core.model.OAuth1AccessToken;
@@ -46,7 +47,9 @@ import java.net.URLConnection;
 import java.net.URLEncoder;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.List;
 import java.util.Random;
 
 import javax.crypto.Mac;
@@ -375,18 +378,21 @@ public class MainActivity extends AppCompatActivity
         @Override
         protected void onPostExecute(JSONObject json) throws RuntimeException {
             String user_personal_id = prefs.getString("user_personal_id", "");
-            if (newDataAvailable(json)) {
+            if (dataModifiedOrAdded(json)) {
                 if (!user_personal_id.isEmpty()) {
                     try {
                         json.put("user_personal_id", user_personal_id);
                         Log.i("JSON", json.toString());
                         postDataToServer.execute(json.toString());
+                        Toast.makeText(MainActivity.this, "Saatsin andmed Minu-tervisesse", Toast.LENGTH_LONG).show();
                     } catch (JSONException e) {
                         throw new RuntimeException(e);
                     }
                 }
                 dbHelper.deleteAll(db);
                 addBPDataToDB(json);
+            } else {
+                Toast.makeText(MainActivity.this, "Uusi andmeid pole", Toast.LENGTH_LONG).show();
             }
 
             populateListViewFromDB();
@@ -394,9 +400,39 @@ public class MainActivity extends AppCompatActivity
         }
     };
 
-    private boolean newDataAvailable(JSONObject json) {
-        // TODO: add condition to check whether new BP data has been added for the user
-        return true;
+    private boolean dataModifiedOrAdded(JSONObject json) {
+        // get all the measurements dates
+        Cursor cursor = db.rawQuery("select * from bp_entry", null);
+        List<String> datesInDb = new ArrayList<>();
+        if (cursor.moveToFirst()){
+            datesInDb.add(cursor.getString(cursor.getColumnIndex("date")));
+            while(cursor.moveToNext()){
+                datesInDb.add(cursor.getString(cursor.getColumnIndex("date")));
+            }
+        }
+
+        List<String> datesInJSON = new ArrayList<>();
+        try {
+            JSONArray measuregprs = json.getJSONObject("body").getJSONArray("measuregrps");
+            int len_measuregrps = measuregprs.length();
+
+            for (int i = 0; i < len_measuregrps; i++) {
+                JSONObject grp = (JSONObject) measuregprs.get(i);
+                JSONArray measures = grp.getJSONArray("measures");
+                int len_measures = measures.length();
+                if (len_measures != 3) continue; // if the measurement is not BP, but, for example, weight or height, then do not go any further
+
+                datesInJSON.add(grp.getString("date"));
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        Log.i("datesInDb", "" + datesInDb.size());
+        Log.i("datesInJSON", "" + datesInDb.size());
+
+        return (datesInDb.size() != datesInJSON.size() // new data is available for the user, or the user has deleted some of their BP data entries
+                || !datesInDb.containsAll(datesInJSON) || !datesInJSON.containsAll(datesInDb)); // the number of entries in db and json are the same, but are the entries themselves the same?
     }
 
     private void addBPDataToDB(JSONObject json) {

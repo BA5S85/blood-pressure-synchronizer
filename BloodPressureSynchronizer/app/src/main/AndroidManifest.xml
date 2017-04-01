@@ -23,6 +23,7 @@
         </activity>
         <activity android:name=".WithingsAuthenticationActivity" />
         <activity android:name=".PersonalInfoActivity" />
+        <activity android:name=".SettingsActivity" />
 
         <service
             android:name=".NotificationService"
@@ -34,7 +35,6 @@
             android:enabled="true"
             android:exported="true" />
 
-        <activity android:name=".SettingsActivity"></activity>
     </application>
 
 </manifest>
