@@ -66,48 +66,6 @@
                 android:gravity="center"
                 android:visibility="gone"/>
 
-            <Button
-                android:id="@+id/selectEntriesBtn"
-                android:text="Vali kirjed"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/button"
-                style="?android:attr/borderlessButtonStyle"
-                android:minHeight="40dip"
-                android:textColor="#FFFFFF"
-                android:layout_gravity="center"/>
-
-            <LinearLayout
-                android:id="@+id/bottomBtns"
-                android:orientation="horizontal"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:visibility="gone">
-
-                <Button
-                    android:text="Tühista"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:id="@+id/cancelBtn"
-                    android:background="@drawable/button"
-                    style="?android:attr/borderlessButtonStyle"
-                    android:minHeight="40dip"
-                    android:textColor="#FFFFFF"
-                    android:layout_margin="5dp"/>
-
-                <Button
-                    android:text="Saada arstile"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:id="@+id/sendToDoctorBtn"
-                    android:background="@drawable/button"
-                    style="?android:attr/borderlessButtonStyle"
-                    android:minHeight="40dip"
-                    android:textColor="#FFFFFF"
-                    android:layout_margin="5dp"/>
-            </LinearLayout>
-
         </LinearLayout>
 
     </android.support.design.widget.CoordinatorLayout>

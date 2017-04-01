@@ -21,8 +21,6 @@ import android.util.Base64;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
-import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -49,8 +47,10 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
@@ -88,11 +88,34 @@ public class MainActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        dbHelper = new DatabaseHelper(MainActivity.this); // create a database helper
+        db = dbHelper.getWritableDatabase(); // get the data repository in write mode
+
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
         accessTokenKey = prefs.getString("access_token_key", "");
         accessTokenSecret = prefs.getString("access_token_secret", "");
         user_id = prefs.getString("user_id", "");
+
+        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
+        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
+                this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+        drawer.setDrawerListener(toggle);
+        toggle.syncState();
+
+        navigationView = (NavigationView) findViewById(R.id.nav_view);
+        navigationView.setNavigationItemSelectedListener(this);
+
+        personalIDMessage = (TextView) findViewById(R.id.personalIDMessage);
+
+        // Set user's name and id to be shown in the navbar
+        updateStuff(prefs, "user_first_name");
+        updateStuff(prefs, "user_last_name");
+        updateStuff(prefs, "user_personal_id");
+        updateStuff(prefs, "notifications_on");
 
         // http://stackoverflow.com/a/40258662/5572217
         if (accessTokenKey.isEmpty() || accessTokenSecret.isEmpty() || user_id.isEmpty()) {
@@ -104,7 +127,15 @@ public class MainActivity extends AppCompatActivity
                     .apiSecret(WithingsAPI.API_SECRET)
                     .build(WithingsAPI.instance());
             accessToken = new OAuth1AccessToken(accessTokenKey, accessTokenSecret);
-            initializeUI();
+            getBPDataFromWithings();
+        }
+    }
+
+    @Override
+    protected void onRestart() {
+        super.onRestart();
+        if (!accessTokenKey.isEmpty() && !accessTokenSecret.isEmpty() && !user_id.isEmpty()) {
+            getBPDataFromWithings();
         }
     }
 
@@ -146,41 +177,14 @@ public class MainActivity extends AppCompatActivity
             editor.putString("user_id", user_id);
             editor.apply();
 
-            initializeUI();
+            getBPDataFromWithings();
         };
     };
 
-    private void initializeUI() {
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-
-        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
-        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
-                this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
-        drawer.setDrawerListener(toggle);
-        toggle.syncState();
-
-        dbHelper = new DatabaseHelper(MainActivity.this); // create a database helper
-        db = dbHelper.getWritableDatabase(); // get the data repository in write mode
-
+    private void getBPDataFromWithings() {
         try {
-
             Uri uri = signRequestAndGetURI();
-            openConnectionAndGetJSON.execute(uri);
-
-            // while network stuff is doing its thing in the background, initialize other views
-
-            navigationView = (NavigationView) findViewById(R.id.nav_view);
-            navigationView.setNavigationItemSelectedListener(this);
-
-            personalIDMessage = (TextView) findViewById(R.id.personalIDMessage);
-
-            // Set user's name and id to be shown in the navbar
-            updateStuff(prefs, "user_first_name");
-            updateStuff(prefs, "user_last_name");
-            updateStuff(prefs, "user_personal_id");
-            updateStuff(prefs, "notifications_on");
-
+            new OpenConnectionAndGetJSON().execute(uri);
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         } catch (UnsupportedEncodingException e) {
@@ -349,7 +353,8 @@ public class MainActivity extends AppCompatActivity
         return Uri.parse("http://wbsapi.withings.net/measure?" + params + "&oauth_signature=" + signature);
     }
 
-    AsyncTask<Uri, Void, JSONObject> openConnectionAndGetJSON = new AsyncTask<Uri, Void, JSONObject>() {
+    private class OpenConnectionAndGetJSON extends AsyncTask<Uri, Void, JSONObject> {
+
         @Override
         protected JSONObject doInBackground(Uri... uris) throws RuntimeException {
 
@@ -378,12 +383,13 @@ public class MainActivity extends AppCompatActivity
         @Override
         protected void onPostExecute(JSONObject json) throws RuntimeException {
             String user_personal_id = prefs.getString("user_personal_id", "");
+
             if (dataModifiedOrAdded(json)) {
                 if (!user_personal_id.isEmpty()) {
                     try {
                         json.put("user_personal_id", user_personal_id);
                         Log.i("JSON", json.toString());
-                        postDataToServer.execute(json.toString());
+                        new PostDataToServer().execute(json.toString());
                         Toast.makeText(MainActivity.this, "Saatsin andmed Minu-tervisesse", Toast.LENGTH_LONG).show();
                     } catch (JSONException e) {
                         throw new RuntimeException(e);
@@ -392,24 +398,20 @@ public class MainActivity extends AppCompatActivity
                 dbHelper.deleteAll(db);
                 addBPDataToDB(json);
             } else {
-                Toast.makeText(MainActivity.this, "Uusi andmeid pole", Toast.LENGTH_LONG).show();
+                if (!user_personal_id.isEmpty()) {
+                    Toast.makeText(MainActivity.this, "Uusi andmeid pole", Toast.LENGTH_LONG).show();
+                }
             }
 
             populateListViewFromDB();
-            initializeDBCursorAdapterDependentViews();
         }
-    };
+
+    }
 
     private boolean dataModifiedOrAdded(JSONObject json) {
         // get all the measurements dates
-        Cursor cursor = db.rawQuery("select * from bp_entry", null);
-        List<String> datesInDb = new ArrayList<>();
-        if (cursor.moveToFirst()){
-            datesInDb.add(cursor.getString(cursor.getColumnIndex("date")));
-            while(cursor.moveToNext()){
-                datesInDb.add(cursor.getString(cursor.getColumnIndex("date")));
-            }
-        }
+        Set<String> datesSentToServer = prefs.getStringSet("dates_sent_to_server", new HashSet<String>());
+        Log.i("DATES SENT TO SERVER", datesSentToServer.toString());
 
         List<String> datesInJSON = new ArrayList<>();
         try {
@@ -428,11 +430,11 @@ public class MainActivity extends AppCompatActivity
             throw new RuntimeException(e);
         }
 
-        Log.i("datesInDb", "" + datesInDb.size());
-        Log.i("datesInJSON", "" + datesInDb.size());
+        Log.i("datesSentToServer", "" + datesSentToServer.size());
+        Log.i("datesInJSON", "" + datesInJSON.size());
 
-        return (datesInDb.size() != datesInJSON.size() // new data is available for the user, or the user has deleted some of their BP data entries
-                || !datesInDb.containsAll(datesInJSON) || !datesInJSON.containsAll(datesInDb)); // the number of entries in db and json are the same, but are the entries themselves the same?
+        return (datesSentToServer.size() != datesInJSON.size() // new data is available for the user, or the user has deleted some of their BP data entries
+                || !datesSentToServer.containsAll(datesInJSON) || !datesInJSON.containsAll(datesSentToServer)); // the number of entries in db and json are the same, but are the entries themselves the same?
     }
 
     private void addBPDataToDB(JSONObject json) {
@@ -504,49 +506,15 @@ public class MainActivity extends AppCompatActivity
         // Create an adapter to map values from the DB to the elements in the list view
         databaseCursorAdapter = new DBCursorAdapter(this, c, 0);
         databaseCursorAdapter.notifyDataSetChanged();
-    }
 
-    private void initializeDBCursorAdapterDependentViews() {
         listView = (ListView) findViewById(R.id.listView);
         listView.setEmptyView(findViewById(R.id.emptyLabel));
 
         // Set the adapter for the list view
         listView.setAdapter(databaseCursorAdapter);
-
-        final LinearLayout bottomBtns = (LinearLayout) findViewById(R.id.bottomBtns);
-
-        final Button selectEntriesBtn = (Button) findViewById(R.id.selectEntriesBtn);
-        selectEntriesBtn.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                // Tell the adapter to show the checkboxes
-                databaseCursorAdapter.setCheckBoxesShown(true);
-                databaseCursorAdapter.notifyDataSetChanged();
-
-                // Remove yourself
-                v.setVisibility(View.GONE);
-
-                // Add 'Cancel', 'Send to doctor' and 'Delete' buttons instead
-                bottomBtns.setVisibility(View.VISIBLE);
-            }
-        });
-
-        final Button cancelBtn = (Button) findViewById(R.id.cancelBtn);
-        cancelBtn.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                // Tell the adapter to hide the checkboxes
-                databaseCursorAdapter.setCheckBoxesShown(false);
-                databaseCursorAdapter.notifyDataSetChanged();
-
-                // Remove yourself
-                bottomBtns.setVisibility(View.GONE);
-
-                // Add 'Select entries' button instead
-                selectEntriesBtn.setVisibility(View.VISIBLE);
-            }
-        });
     }
 
-    AsyncTask<String, Void, String> postDataToServer = new AsyncTask<String, Void, String>() {
+    private class PostDataToServer extends AsyncTask<String, Void, String> {
 
         @Override
         protected String doInBackground(String... strings) throws RuntimeException {
@@ -579,6 +547,20 @@ public class MainActivity extends AppCompatActivity
         @Override
         protected void onPostExecute(String str) throws RuntimeException {
             Log.i("RESPONSE_FROM_SERVER", str);
+
+            Set<String> dates = new HashSet<>();
+            Cursor cursor = db.rawQuery("select * from bp_entry", null);
+            if (cursor.moveToFirst()) {
+                while (!cursor.isAfterLast()) {
+                    String date = cursor.getString(cursor.getColumnIndex("date"));
+                    dates.add(date);
+                    cursor.moveToNext();
+                }
+            }
+
+            SharedPreferences.Editor editor = prefs.edit();
+            editor.putStringSet("dates_sent_to_server", dates);
+            editor.apply();
         }
 
     };
