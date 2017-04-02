@@ -1,7 +1,9 @@
 package com.example.bassa.bloodpressuresynchronizer;
 
 import android.app.AlarmManager;
+import android.app.IntentService;
 import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -11,6 +13,7 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.annotation.Nullable;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
@@ -40,6 +43,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
+import java.lang.ref.WeakReference;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLEncoder;
@@ -61,7 +65,7 @@ import static com.example.bassa.bloodpressuresynchronizer.DatabaseContract.BPEnt
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
-    private SharedPreferences prefs;
+    private static SharedPreferences prefs;
 
     public static final int AUTHENTICATION_REQUEST = 1;
 
@@ -87,6 +91,7 @@ public class MainActivity extends AppCompatActivity
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        SendBPDataNotificationService.updateActivity(this);
 
         dbHelper = new DatabaseHelper(MainActivity.this); // create a database helper
         db = dbHelper.getWritableDatabase(); // get the data repository in write mode
@@ -134,7 +139,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onRestart() {
         super.onRestart();
-        if (!accessTokenKey.isEmpty() && !accessTokenSecret.isEmpty() && !user_id.isEmpty()) {
+        if (!user_id.isEmpty()) {
             getBPDataFromWithings();
         }
     }
@@ -239,6 +244,8 @@ public class MainActivity extends AppCompatActivity
             } else {
                 personalIDMessage.setVisibility(View.VISIBLE);
             }
+
+            initializeAutomaticBPDataTransfer();
         } else if (key.equals("user_first_name") || key.equals("user_last_name")) {
             String firstName = shared.getString("user_first_name", "");
             String lastName = shared.getString("user_last_name", "");
@@ -252,6 +259,8 @@ public class MainActivity extends AppCompatActivity
                 initializeNotifications(false);
                 Log.i("NOTIFICATIONS", "OFF");
             }
+        } else if (key.equals("notification_frequency")) {
+            initializeNotifications(true);
         }
     }
 
@@ -261,8 +270,8 @@ public class MainActivity extends AppCompatActivity
         // http://stackoverflow.com/a/16871244/5572217
         // http://karanbalkar.com/2013/07/tutorial-41-using-alarmmanager-and-broadcastreceiver-in-android/
 
-        Intent intent = new Intent(MyApplication.getAppContext(), MyReceiver.class);
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(MyApplication.getAppContext(), 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+        Intent intent = new Intent(MyApplication.getAppContext(), MeasureBPNotificationReceiver.class);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(MyApplication.getAppContext(), (int) System.currentTimeMillis(), intent, PendingIntent.FLAG_CANCEL_CURRENT);
 
         AlarmManager am = (AlarmManager) MyApplication.getAppContext().getSystemService(Context.ALARM_SERVICE);
         am.cancel(pendingIntent);
@@ -275,21 +284,94 @@ public class MainActivity extends AppCompatActivity
             firingCal.set(Calendar.MINUTE, 0); // Particular minute
             firingCal.set(Calendar.SECOND, 0);
 
-//            Log.i("CALENDAR", new SimpleDateFormat("yyyy.MM.dd HH:mm:ss z").format(firingCal.getTime()));
-//            Log.i("CALENDAR", new SimpleDateFormat("yyyy.MM.dd HH:mm:ss z").format(currentCal.getTime()));
-
             long intendedTime = firingCal.getTimeInMillis();
             long currentTime = currentCal.getTimeInMillis();
 
+            int frequency = Integer.valueOf(prefs.getString("notification_frequency", ""));
+            Log.i("FREQUENCY", "" + frequency);
+
             if (intendedTime >= currentTime) { // 8.32, 9.57, etc.
-                am.setRepeating(AlarmManager.RTC_WAKEUP, intendedTime, 60000*60, pendingIntent); // 60000 is one minute, 60000*60 is 60 minutes
+                am.setRepeating(AlarmManager.RTC_WAKEUP, intendedTime, 60000*60*frequency, pendingIntent); // 60000 is one minute, 60000*60 is 60 minutes
             } else { // 18.30, 20.19
                 int hours = currentCal.get(Calendar.HOUR_OF_DAY); // 18, 19
 
                 firingCal.set(Calendar.HOUR_OF_DAY, hours + 1);
 
                 intendedTime = firingCal.getTimeInMillis();
-                am.setRepeating(AlarmManager.RTC_WAKEUP, intendedTime, 60000*60, pendingIntent);
+                am.setRepeating(AlarmManager.RTC_WAKEUP, intendedTime, 60000*60*frequency, pendingIntent);
+            }
+        }
+
+    }
+
+    private static void initializeAutomaticBPDataTransfer() {
+
+        // initialize firing notifications
+        // http://stackoverflow.com/a/16871244/5572217
+        // http://karanbalkar.com/2013/07/tutorial-41-using-alarmmanager-and-broadcastreceiver-in-android/
+
+        Intent intent = new Intent(MyApplication.getAppContext(), SendBPDataNotificationReceiver.class);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(MyApplication.getAppContext(), (int) System.currentTimeMillis(), intent, PendingIntent.FLAG_CANCEL_CURRENT);
+
+        AlarmManager am = (AlarmManager) MyApplication.getAppContext().getSystemService(Context.ALARM_SERVICE);
+        am.cancel(pendingIntent);
+
+        Calendar firingCal = Calendar.getInstance();
+        Calendar currentCal = Calendar.getInstance();
+
+        firingCal.set(Calendar.HOUR_OF_DAY, 10); // At the hour you wanna fire
+        firingCal.set(Calendar.MINUTE, 30); // Particular minute
+        firingCal.set(Calendar.SECOND, 0);
+
+        long intendedTime = firingCal.getTimeInMillis();
+        long currentTime = currentCal.getTimeInMillis();
+
+        if (intendedTime >= currentTime) { // 8.32, 9.57, etc.
+            am.setRepeating(AlarmManager.RTC_WAKEUP, intendedTime, 60000*60, pendingIntent); // 60000 is one minute, 60000*60 is 60 minutes
+        } else { // 18.30, 20.19
+            int hours = currentCal.get(Calendar.HOUR_OF_DAY); // 18, 19
+
+            firingCal.set(Calendar.HOUR_OF_DAY, hours + 1);
+
+            intendedTime = firingCal.getTimeInMillis();
+            am.setRepeating(AlarmManager.RTC_WAKEUP, intendedTime, 60000*60, pendingIntent);
+        }
+
+    }
+
+    static public class SendBPDataNotificationReceiver extends BroadcastReceiver {
+
+        public SendBPDataNotificationReceiver() {
+        }
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            // This method is called when the BroadcastReceiver is receiving
+            // an Intent broadcast.
+            Intent service = new Intent(context, MainActivity.SendBPDataNotificationService.class);
+            context.startService(service);
+        }
+
+    }
+
+    static public class SendBPDataNotificationService extends IntentService {
+
+        private static WeakReference<MainActivity> mActivityRef;
+        public static void updateActivity(MainActivity activity) {
+            mActivityRef = new WeakReference<>(activity);
+        }
+
+        public SendBPDataNotificationService() {
+            super("SendBPDataNotificationService");
+        }
+
+        @Override
+        protected void onHandleIntent(@Nullable Intent intent) {
+            MainActivity a = mActivityRef.get();
+
+            if (!a.user_id.isEmpty()) {
+                Log.i("SENDING BP DATA", "TO FAKE E-HEALTH");
+                a.getBPDataFromWithings();
             }
         }
 
@@ -397,10 +479,6 @@ public class MainActivity extends AppCompatActivity
                 }
                 dbHelper.deleteAll(db);
                 addBPDataToDB(json);
-            } else {
-                if (!user_personal_id.isEmpty()) {
-                    Toast.makeText(MainActivity.this, "Uusi andmeid pole", Toast.LENGTH_LONG).show();
-                }
             }
 
             populateListViewFromDB();

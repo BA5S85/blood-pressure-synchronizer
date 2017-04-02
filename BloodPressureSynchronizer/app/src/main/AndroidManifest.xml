@@ -26,15 +26,22 @@
         <activity android:name=".SettingsActivity" />
 
         <service
-            android:name=".NotificationService"
+            android:name=".MeasureBPNotificationService"
+            android:enabled="true"
+            android:exported="true" />
+        <service
+            android:name=".MainActivity$SendBPDataNotificationService"
             android:enabled="true"
             android:exported="true" />
 
         <receiver
-            android:name=".MyReceiver"
+            android:name=".MeasureBPNotificationReceiver"
             android:enabled="true"
             android:exported="true" />
-
+        <receiver
+            android:name=".MainActivity$SendBPDataNotificationReceiver"
+            android:enabled="true"
+            android:exported="true" />
     </application>
 
 </manifest>

@@ -2,7 +2,6 @@ package com.example.bassa.bloodpressuresynchronizer;
 
 import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.preference.EditTextPreference;
 import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
@@ -94,13 +93,7 @@ public class SettingsActivity extends AppCompatActivity {
         private void updatePrefSummary(Preference p) {
             SharedPreferences.Editor editor = sharedPreferences.edit();
 
-            if (p instanceof EditTextPreference) {
-                EditTextPreference editTextPref = (EditTextPreference) p;
-                p.setSummary(editTextPref.getText());
-
-                editor.putString(editTextPref.getKey(), editTextPref.getText());
-                editor.apply();
-            } else if (p instanceof ListPreference) {
+            if (p instanceof ListPreference) {
                 ListPreference listPref = (ListPreference) p;
                 p.setSummary(listPref.getEntry());
 

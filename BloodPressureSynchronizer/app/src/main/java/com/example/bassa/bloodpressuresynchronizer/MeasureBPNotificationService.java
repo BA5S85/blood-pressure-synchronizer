@@ -12,7 +12,7 @@ import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
 // http://stackoverflow.com/a/22279317/5572217
-public class NotificationService extends Service {
+public class MeasureBPNotificationService extends Service {
 
     @Override
     public void onStart(Intent intent, int startId) {
