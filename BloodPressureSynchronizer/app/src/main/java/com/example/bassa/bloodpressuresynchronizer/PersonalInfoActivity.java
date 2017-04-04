@@ -71,6 +71,7 @@ public class PersonalInfoActivity extends AppCompatActivity {
                 public boolean onPreferenceChange(Preference preference, Object newValue) {
                     String str = newValue.toString();
                     try {
+                        Integer.parseInt(str);
                         int firstNumber = Integer.parseInt("" + str.charAt(0)); // 1. = sugu ja sünni nn. "sajand" (praegune vahemik 1...6)
                         int fourthAndFifthNumber = Integer.parseInt(str.substring(3, 5)); // 4. ja 5. = sünnikuu (01...12)
                         int sixthAndSeventhNumber = Integer.parseInt(str.substring(5, 7));// 6. ja 7. = sünnikuupäev (01...31)

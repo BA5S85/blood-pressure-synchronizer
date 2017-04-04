@@ -90,41 +90,14 @@ public class MainActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        SendBPDataNotificationService.updateActivity(this);
-        PersonalInfoActivity.PersonalInfoFragment.updateActivity(this);
-        SettingsActivity.SettingsFragment.updateActivity(this);
-
-        dbHelper = new DatabaseHelper(MainActivity.this); // create a database helper
-        db = dbHelper.getWritableDatabase(); // get the data repository in write mode
-
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
         accessTokenKey = prefs.getString("access_token_key", "");
         accessTokenSecret = prefs.getString("access_token_secret", "");
         user_id = prefs.getString("user_id", "");
 
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-
-        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
-        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
-                this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
-        drawer.setDrawerListener(toggle);
-        toggle.syncState();
-
-        navigationView = (NavigationView) findViewById(R.id.nav_view);
-        navigationView.setNavigationItemSelectedListener(this);
-
-        personalIDMessage = (TextView) findViewById(R.id.personalIDMessage);
-
-        // Set user's name and id to be shown in the navbar
-        updateStuff(prefs, "user_first_name");
-        updateStuff(prefs, "user_last_name");
-        updateStuff(prefs, "user_personal_id");
-        updateStuff(prefs, "notifications_on");
-
         // http://stackoverflow.com/a/40258662/5572217
-        if (user_id.isEmpty()) {
+        if (accessTokenKey.isEmpty() || accessTokenSecret.isEmpty() || user_id.isEmpty()) {
             Intent intent = new Intent(this, WithingsAuthenticationActivity.class);
             startActivityForResult(intent, AUTHENTICATION_REQUEST);
         } else {
@@ -140,7 +113,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onRestart() {
         super.onRestart();
-        if (!user_id.isEmpty()) {
+        if (!accessTokenKey.isEmpty() && !accessTokenSecret.isEmpty() && !user_id.isEmpty()) {
             getBPDataFromWithings();
         }
     }
@@ -188,10 +161,36 @@ public class MainActivity extends AppCompatActivity
     };
 
     private void getBPDataFromWithings() {
+        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
+        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
+                this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+        drawer.setDrawerListener(toggle);
+        toggle.syncState();
+
+        SendBPDataNotificationService.updateActivity(this);
+        PersonalInfoActivity.PersonalInfoFragment.updateActivity(this);
+        SettingsActivity.SettingsFragment.updateActivity(this);
+
+        dbHelper = new DatabaseHelper(MainActivity.this); // create a database helper
+        db = dbHelper.getWritableDatabase(); // get the data repository in write mode
+
         try {
-            // add some sort of delay or sleep here
             Uri uri = signRequestAndGetURI();
             new OpenConnectionAndGetJSON().execute(uri);
+
+            navigationView = (NavigationView) findViewById(R.id.nav_view);
+            navigationView.setNavigationItemSelectedListener(this);
+
+            personalIDMessage = (TextView) findViewById(R.id.personalIDMessage);
+
+            // Set user's name and id to be shown in the navbar
+            updateStuff(prefs, "user_first_name");
+            updateStuff(prefs, "user_last_name");
+            updateStuff(prefs, "user_personal_id");
+            updateStuff(prefs, "notifications_on");
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         } catch (UnsupportedEncodingException e) {
@@ -272,10 +271,10 @@ public class MainActivity extends AppCompatActivity
         // http://stackoverflow.com/a/16871244/5572217
         // http://karanbalkar.com/2013/07/tutorial-41-using-alarmmanager-and-broadcastreceiver-in-android/
 
-        Intent intent = new Intent(MyApplication.getAppContext(), MeasureBPNotificationReceiver.class);
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(MyApplication.getAppContext(), (int) System.currentTimeMillis(), intent, PendingIntent.FLAG_CANCEL_CURRENT);
+        Intent intent = new Intent(getApplication(), MeasureBPNotificationReceiver.class);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(getApplication(), (int) System.currentTimeMillis(), intent, PendingIntent.FLAG_CANCEL_CURRENT);
 
-        AlarmManager am = (AlarmManager) MyApplication.getAppContext().getSystemService(Context.ALARM_SERVICE);
+        AlarmManager am = (AlarmManager) getApplication().getSystemService(Context.ALARM_SERVICE);
         am.cancel(pendingIntent);
 
         if (initialize) {
@@ -312,10 +311,10 @@ public class MainActivity extends AppCompatActivity
         // http://stackoverflow.com/a/16871244/5572217
         // http://karanbalkar.com/2013/07/tutorial-41-using-alarmmanager-and-broadcastreceiver-in-android/
 
-        Intent intent = new Intent(MyApplication.getAppContext(), SendBPDataNotificationReceiver.class);
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(MyApplication.getAppContext(), (int) System.currentTimeMillis(), intent, PendingIntent.FLAG_CANCEL_CURRENT);
+        Intent intent = new Intent(getApplication(), SendBPDataNotificationReceiver.class);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(getApplication(), (int) System.currentTimeMillis(), intent, PendingIntent.FLAG_CANCEL_CURRENT);
 
-        AlarmManager am = (AlarmManager) MyApplication.getAppContext().getSystemService(Context.ALARM_SERVICE);
+        AlarmManager am = (AlarmManager) getApplication().getSystemService(Context.ALARM_SERVICE);
         am.cancel(pendingIntent);
 
         Calendar firingCal = Calendar.getInstance();
