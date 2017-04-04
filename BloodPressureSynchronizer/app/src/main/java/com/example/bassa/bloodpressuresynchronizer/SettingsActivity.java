@@ -11,6 +11,8 @@ import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.view.MenuItem;
 
+import java.lang.ref.WeakReference;
+
 public class SettingsActivity extends AppCompatActivity {
 
     @Override
@@ -44,6 +46,11 @@ public class SettingsActivity extends AppCompatActivity {
 
     public static class SettingsFragment extends PreferenceFragment implements SharedPreferences.OnSharedPreferenceChangeListener {
 
+        private static WeakReference<MainActivity> mActivityRef;
+        public static void updateActivity(MainActivity activity) {
+            mActivityRef = new WeakReference<>(activity);
+        }
+
         private SharedPreferences sharedPreferences;
 
         @Override
@@ -76,7 +83,8 @@ public class SettingsActivity extends AppCompatActivity {
         @Override
         public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
             updatePrefSummary(findPreference(key));
-            MainActivity.updateStuff(sharedPreferences, key);
+            MainActivity a = mActivityRef.get();
+            a.updateStuff(sharedPreferences, key);
         }
 
         private void fillSummaries(Preference p) {

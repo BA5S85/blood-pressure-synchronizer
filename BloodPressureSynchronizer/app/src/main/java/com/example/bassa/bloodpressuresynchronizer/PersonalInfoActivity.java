@@ -9,6 +9,9 @@ import android.preference.PreferenceGroup;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.view.MenuItem;
+import android.widget.Toast;
+
+import java.lang.ref.WeakReference;
 
 public class PersonalInfoActivity extends AppCompatActivity {
 
@@ -43,6 +46,11 @@ public class PersonalInfoActivity extends AppCompatActivity {
 
     public static class PersonalInfoFragment extends PreferenceFragment implements SharedPreferences.OnSharedPreferenceChangeListener {
 
+        private static WeakReference<MainActivity> mActivityRef;
+        public static void updateActivity(MainActivity activity) {
+            mActivityRef = new WeakReference<>(activity);
+        }
+
         private SharedPreferences sharedPreferences;
 
         @Override
@@ -56,6 +64,32 @@ public class PersonalInfoActivity extends AppCompatActivity {
 
             // Put preferences values as summaries
             fillSummaries(getPreferenceScreen());
+
+            EditTextPreference editPref = (EditTextPreference) getPreferenceScreen().findPreference("user_personal_id");
+            editPref.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
+                @Override
+                public boolean onPreferenceChange(Preference preference, Object newValue) {
+                    String str = newValue.toString();
+                    try {
+                        int firstNumber = Integer.parseInt("" + str.charAt(0)); // 1. = sugu ja sünni nn. "sajand" (praegune vahemik 1...6)
+                        int fourthAndFifthNumber = Integer.parseInt(str.substring(3, 5)); // 4. ja 5. = sünnikuu (01...12)
+                        int sixthAndSeventhNumber = Integer.parseInt(str.substring(5, 7));// 6. ja 7. = sünnikuupäev (01...31)
+
+                        if (str.length() == 11 &&
+                                firstNumber >= 1 && firstNumber <= 6 &&
+                                fourthAndFifthNumber >= 1 && fourthAndFifthNumber <= 12 &&
+                                sixthAndSeventhNumber >= 1 && sixthAndSeventhNumber <= 31) {
+                            return true;
+                        } else {
+                            Toast.makeText(getActivity(), "Vigane isikukood!", Toast.LENGTH_LONG).show();
+                            return false;
+                        }
+                    } catch (Exception e) {
+                        Toast.makeText(getActivity(), "Vigane isikukood!", Toast.LENGTH_LONG).show();
+                        return false;
+                    }
+                }
+            });
         }
 
         @Override
@@ -75,7 +109,8 @@ public class PersonalInfoActivity extends AppCompatActivity {
         @Override
         public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
             updatePrefSummary(findPreference(key));
-            MainActivity.updateStuff(sharedPreferences, key);
+            MainActivity a = mActivityRef.get();
+            a.updateStuff(sharedPreferences, key);
         }
 
         private void fillSummaries(Preference p) {

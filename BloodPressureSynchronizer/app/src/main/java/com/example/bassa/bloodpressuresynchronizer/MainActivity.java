@@ -49,10 +49,8 @@ import java.net.URLConnection;
 import java.net.URLEncoder;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
@@ -65,7 +63,7 @@ import static com.example.bassa.bloodpressuresynchronizer.DatabaseContract.BPEnt
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
-    private static SharedPreferences prefs;
+    private SharedPreferences prefs;
 
     public static final int AUTHENTICATION_REQUEST = 1;
 
@@ -79,8 +77,8 @@ public class MainActivity extends AppCompatActivity
 
     private static final String ENC = "UTF-8";
 
-    private static NavigationView navigationView;
-    private static TextView personalIDMessage;
+    private NavigationView navigationView;
+    private TextView personalIDMessage;
     private ListView listView;
 
     private DatabaseHelper dbHelper;
@@ -91,7 +89,10 @@ public class MainActivity extends AppCompatActivity
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
         SendBPDataNotificationService.updateActivity(this);
+        PersonalInfoActivity.PersonalInfoFragment.updateActivity(this);
+        SettingsActivity.SettingsFragment.updateActivity(this);
 
         dbHelper = new DatabaseHelper(MainActivity.this); // create a database helper
         db = dbHelper.getWritableDatabase(); // get the data repository in write mode
@@ -123,7 +124,7 @@ public class MainActivity extends AppCompatActivity
         updateStuff(prefs, "notifications_on");
 
         // http://stackoverflow.com/a/40258662/5572217
-        if (accessTokenKey.isEmpty() || accessTokenSecret.isEmpty() || user_id.isEmpty()) {
+        if (user_id.isEmpty()) {
             Intent intent = new Intent(this, WithingsAuthenticationActivity.class);
             startActivityForResult(intent, AUTHENTICATION_REQUEST);
         } else {
@@ -188,6 +189,7 @@ public class MainActivity extends AppCompatActivity
 
     private void getBPDataFromWithings() {
         try {
+            // add some sort of delay or sleep here
             Uri uri = signRequestAndGetURI();
             new OpenConnectionAndGetJSON().execute(uri);
         } catch (NoSuchAlgorithmException e) {
@@ -230,7 +232,7 @@ public class MainActivity extends AppCompatActivity
         return true;
     }
 
-    protected static void updateStuff(SharedPreferences shared, String key) {
+    protected void updateStuff(SharedPreferences shared, String key) {
         View header = navigationView.getHeaderView(0);
 
         if (key.equals("user_personal_id")) {
@@ -264,7 +266,7 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
-    private static void initializeNotifications(boolean initialize) {
+    private void initializeNotifications(boolean initialize) {
 
         // initialize firing notifications
         // http://stackoverflow.com/a/16871244/5572217
@@ -304,7 +306,7 @@ public class MainActivity extends AppCompatActivity
 
     }
 
-    private static void initializeAutomaticBPDataTransfer() {
+    private void initializeAutomaticBPDataTransfer() {
 
         // initialize firing notifications
         // http://stackoverflow.com/a/16871244/5572217
@@ -464,55 +466,25 @@ public class MainActivity extends AppCompatActivity
 
         @Override
         protected void onPostExecute(JSONObject json) throws RuntimeException {
-            String user_personal_id = prefs.getString("user_personal_id", "");
+            Log.i("JSON GOT", json.toString());
 
-            if (dataModifiedOrAdded(json)) {
-                if (!user_personal_id.isEmpty()) {
-                    try {
-                        json.put("user_personal_id", user_personal_id);
-                        Log.i("JSON", json.toString());
-                        new PostDataToServer().execute(json.toString());
-                        Toast.makeText(MainActivity.this, "Saatsin andmed Minu-tervisesse", Toast.LENGTH_LONG).show();
-                    } catch (JSONException e) {
-                        throw new RuntimeException(e);
-                    }
+            String user_personal_id = prefs.getString("user_personal_id", "");
+            if (!user_personal_id.isEmpty()) {
+                try {
+                    json.put("user_personal_id", user_personal_id);
+                    Log.i("JSON SENT", json.toString());
+                    new PostDataToServer().execute(json.toString());
+                    Toast.makeText(MainActivity.this, "Saatsin andmed Minu-tervisesse", Toast.LENGTH_LONG).show();
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
                 }
-                dbHelper.deleteAll(db);
-                addBPDataToDB(json);
             }
 
+            dbHelper.deleteAll(db);
+            addBPDataToDB(json);
             populateListViewFromDB();
         }
 
-    }
-
-    private boolean dataModifiedOrAdded(JSONObject json) {
-        // get all the measurements dates
-        Set<String> datesSentToServer = prefs.getStringSet("dates_sent_to_server", new HashSet<String>());
-        Log.i("DATES SENT TO SERVER", datesSentToServer.toString());
-
-        List<String> datesInJSON = new ArrayList<>();
-        try {
-            JSONArray measuregprs = json.getJSONObject("body").getJSONArray("measuregrps");
-            int len_measuregrps = measuregprs.length();
-
-            for (int i = 0; i < len_measuregrps; i++) {
-                JSONObject grp = (JSONObject) measuregprs.get(i);
-                JSONArray measures = grp.getJSONArray("measures");
-                int len_measures = measures.length();
-                if (len_measures != 3) continue; // if the measurement is not BP, but, for example, weight or height, then do not go any further
-
-                datesInJSON.add(grp.getString("date"));
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-
-        Log.i("datesSentToServer", "" + datesSentToServer.size());
-        Log.i("datesInJSON", "" + datesInJSON.size());
-
-        return (datesSentToServer.size() != datesInJSON.size() // new data is available for the user, or the user has deleted some of their BP data entries
-                || !datesSentToServer.containsAll(datesInJSON) || !datesInJSON.containsAll(datesSentToServer)); // the number of entries in db and json are the same, but are the entries themselves the same?
     }
 
     private void addBPDataToDB(JSONObject json) {
