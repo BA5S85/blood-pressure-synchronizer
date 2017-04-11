@@ -9,6 +9,8 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -98,8 +100,12 @@ public class MainActivity extends AppCompatActivity
 
         // http://stackoverflow.com/a/40258662/5572217
         if (accessTokenKey.isEmpty() || accessTokenSecret.isEmpty() || user_id.isEmpty()) {
-            Intent intent = new Intent(this, WithingsAuthenticationActivity.class);
-            startActivityForResult(intent, AUTHENTICATION_REQUEST);
+            if (isNetworkAvailable()) {
+                Intent intent = new Intent(this, WithingsAuthenticationActivity.class);
+                startActivityForResult(intent, AUTHENTICATION_REQUEST);
+            } else {
+                initializeUI();
+            }
         } else {
             service = new ServiceBuilder()
                     .apiKey(WithingsAPI.API_KEY)
@@ -133,6 +139,13 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
+    // http://stackoverflow.com/a/4239019/5572217
+    private boolean isNetworkAvailable() {
+        ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+    }
+
     // http://stackoverflow.com/a/40258662/5572217
     AsyncTask<Object, Object, Object> getAccessTokenThread = new AsyncTask<Object, Object, Object>() {
         @Override
@@ -160,13 +173,13 @@ public class MainActivity extends AppCompatActivity
         };
     };
 
-    private void getBPDataFromWithings() {
+    private void initializeUI() {
+
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
-        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
-                this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
         drawer.setDrawerListener(toggle);
         toggle.syncState();
 
@@ -174,32 +187,43 @@ public class MainActivity extends AppCompatActivity
         PersonalInfoActivity.PersonalInfoFragment.updateActivity(this);
         SettingsActivity.SettingsFragment.updateActivity(this);
 
+        navigationView = (NavigationView) findViewById(R.id.nav_view);
+        navigationView.setNavigationItemSelectedListener(this);
+
+        personalIDMessage = (TextView) findViewById(R.id.personalIDMessage);
+        if (isNetworkAvailable()) {
+            personalIDMessage.setText("Hea kasutaja! Palun võta lahti vasakpoolne külgriba, mine Minu kontaktandmetesse ja sisesta oma isikukood, muidu me ei saa su andmeid Minu-tervisesse saata.");
+        } else {
+            personalIDMessage.setText("Hea kasutaja! Sinu telefonil puudub internetiühendus. Offline-režiimis võid vaadata ja muuta oma kontaktandmeid ja rakenduse seadeid, samuti kui sul on varasemalt sünkroniseeritud vererõhuandmeid, siis võid ka neid vaadata. Enam midagi teha ei saa. Palun ühendu internetiga, et me saaksime ka uusi andmeid sünkroniseerida ja Minu-tervisesse saata.");
+        }
+
+        // Set user's name and id to be shown in the navbar
+        updateStuff(prefs, "user_first_name");
+        updateStuff(prefs, "user_last_name");
+        updateStuff(prefs, "user_personal_id");
+        updateStuff(prefs, "notifications_on");
+
+    }
+
+    private void getBPDataFromWithings() {
+
+        initializeUI();
+
         dbHelper = new DatabaseHelper(MainActivity.this); // create a database helper
         db = dbHelper.getWritableDatabase(); // get the data repository in write mode
 
         try {
-            Uri uri = signRequestAndGetURI();
+            Uri uri;
+            if (isNetworkAvailable()) {
+                uri = signRequestAndGetURI();
+            } else {
+                uri = Uri.parse("no internet");
+            }
             new OpenConnectionAndGetJSON().execute(uri);
-
-            navigationView = (NavigationView) findViewById(R.id.nav_view);
-            navigationView.setNavigationItemSelectedListener(this);
-
-            personalIDMessage = (TextView) findViewById(R.id.personalIDMessage);
-
-            // Set user's name and id to be shown in the navbar
-            updateStuff(prefs, "user_first_name");
-            updateStuff(prefs, "user_last_name");
-            updateStuff(prefs, "user_personal_id");
-            updateStuff(prefs, "notifications_on");
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-        } catch (InvalidKeyException e) {
-            e.printStackTrace();
-        } catch (RuntimeException e) {
+        } catch (NoSuchAlgorithmException | UnsupportedEncodingException | InvalidKeyException | RuntimeException e) {
             e.printStackTrace();
         }
+
     }
 
     @Override
@@ -404,6 +428,8 @@ public class MainActivity extends AppCompatActivity
         base.append("&");
         base.append(params);
 
+        Log.i("BASE", base.toString());
+
         byte[] keyBytes = (WithingsAPI.API_SECRET + "&" + accessTokenSecret).getBytes(ENC);
         SecretKey key = new SecretKeySpec(keyBytes, "HmacSHA1");
         Mac mac = Mac.getInstance("HmacSHA1");
@@ -426,6 +452,8 @@ public class MainActivity extends AppCompatActivity
                 "oauth_version=1.0&" +
                 "userid=" + user_id;
 
+        Log.i("PARAMS", params);
+
         // generate the oauth_signature
         // http://stackoverflow.com/a/6457017/5572217
         String signature = getSignature(
@@ -442,21 +470,28 @@ public class MainActivity extends AppCompatActivity
         protected JSONObject doInBackground(Uri... uris) throws RuntimeException {
 
             Uri uri = uris[0];
+            String uriStr = uri.toString();
             try {
-                URLConnection urlConnection = new URL(uri.toString()).openConnection();
-                InputStream in = urlConnection.getInputStream();
-                BufferedReader r = new BufferedReader(new InputStreamReader(in));
+                if (uriStr.equals("no internet")) {
+                    return new JSONObject("{no: internet}");
+                } else {
 
-                StringBuilder total = new StringBuilder();
-                String line;
-                while ((line = r.readLine()) != null) {
-                    total.append(line).append('\n');
+                    URLConnection urlConnection = new URL(uriStr).openConnection();
+                    InputStream in = urlConnection.getInputStream();
+                    BufferedReader r = new BufferedReader(new InputStreamReader(in));
+
+                    StringBuilder total = new StringBuilder();
+                    String line;
+                    while ((line = r.readLine()) != null) {
+                        total.append(line).append('\n');
+                    }
+
+                    r.close();
+                    in.close();
+
+                    return new JSONObject(total.toString());
+
                 }
-
-                r.close();
-                in.close();
-
-                return new JSONObject(total.toString());
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -467,20 +502,25 @@ public class MainActivity extends AppCompatActivity
         protected void onPostExecute(JSONObject json) throws RuntimeException {
             Log.i("JSON GOT", json.toString());
 
-            String user_personal_id = prefs.getString("user_personal_id", "");
-            if (!user_personal_id.isEmpty()) {
-                try {
-                    json.put("user_personal_id", user_personal_id);
-                    Log.i("JSON SENT", json.toString());
-                    new PostDataToServer().execute(json.toString());
-                    Toast.makeText(MainActivity.this, "Saatsin andmed Minu-tervisesse", Toast.LENGTH_LONG).show();
-                } catch (JSONException e) {
-                    throw new RuntimeException(e);
+            if (!json.toString().equals("{\"no\":\"internet\"}")) {
+
+                String user_personal_id = prefs.getString("user_personal_id", "");
+                if (!user_personal_id.isEmpty()) {
+                    try {
+                        json.put("user_personal_id", user_personal_id);
+                        Log.i("JSON SENT", json.toString());
+                        new PostDataToServer().execute(json.toString());
+                        Toast.makeText(MainActivity.this, "Saatsin andmed Minu-tervisesse", Toast.LENGTH_LONG).show();
+                    } catch (JSONException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
+
+                dbHelper.deleteAll(db);
+                addBPDataToDB(json);
+
             }
 
-            dbHelper.deleteAll(db);
-            addBPDataToDB(json);
             populateListViewFromDB();
         }
 

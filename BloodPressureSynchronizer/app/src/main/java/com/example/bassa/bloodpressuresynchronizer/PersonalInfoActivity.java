@@ -8,6 +8,7 @@ import android.preference.PreferenceFragment;
 import android.preference.PreferenceGroup;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.MenuItem;
 import android.widget.Toast;
 
@@ -70,12 +71,15 @@ public class PersonalInfoActivity extends AppCompatActivity {
                 @Override
                 public boolean onPreferenceChange(Preference preference, Object newValue) {
                     String str = newValue.toString();
+                    Log.i("SISESTATI ISIKUKOODI", str);
                     try {
-                        Integer.parseInt(str);
+                        long id = Long.parseLong(str);
+                        Log.i("ID", "" + id);
                         int firstNumber = Integer.parseInt("" + str.charAt(0)); // 1. = sugu ja sünni nn. "sajand" (praegune vahemik 1...6)
                         int fourthAndFifthNumber = Integer.parseInt(str.substring(3, 5)); // 4. ja 5. = sünnikuu (01...12)
                         int sixthAndSeventhNumber = Integer.parseInt(str.substring(5, 7));// 6. ja 7. = sünnikuupäev (01...31)
 
+                        Log.i("NUMBRID", firstNumber + " " + fourthAndFifthNumber + " " + sixthAndSeventhNumber);
                         if (str.length() == 11 &&
                                 firstNumber >= 1 && firstNumber <= 6 &&
                                 fourthAndFifthNumber >= 1 && fourthAndFifthNumber <= 12 &&
