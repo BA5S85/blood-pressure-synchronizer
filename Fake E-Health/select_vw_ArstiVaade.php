@@ -19,7 +19,7 @@ if ($result->num_rows > 0) {
     echo "</tr>";
     while ($row = $result->fetch_assoc()) {
         echo "<tr>";
-        echo "<td>" . $row["Patsiendi_isikukood"] . "</td>";
+        echo "<td>" . $row["Isikukood"] . "</td>";
         echo "<td>" . $row["Eesnimi"] . "</td>";
         echo "<td>" . $row["Perekonnanimi"] . "</td>";
         echo "<td>" . $row["Aeg"] . "</td>";
