@@ -11,7 +11,6 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
@@ -22,7 +21,6 @@ import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.util.Base64;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
@@ -33,6 +31,10 @@ import android.widget.Toast;
 import com.github.scribejava.core.builder.ServiceBuilder;
 import com.github.scribejava.core.model.OAuth1AccessToken;
 import com.github.scribejava.core.model.OAuth1RequestToken;
+import com.github.scribejava.core.model.OAuthRequest;
+import com.github.scribejava.core.model.Response;
+import com.github.scribejava.core.model.SignatureType;
+import com.github.scribejava.core.model.Verb;
 import com.github.scribejava.core.oauth.OAuth10aService;
 
 import org.json.JSONArray;
@@ -41,24 +43,14 @@ import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.io.UnsupportedEncodingException;
 import java.lang.ref.WeakReference;
 import java.net.URL;
 import java.net.URLConnection;
-import java.net.URLEncoder;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.util.Calendar;
 import java.util.HashSet;
-import java.util.Random;
 import java.util.Set;
-
-import javax.crypto.Mac;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 
 import static com.example.bassa.bloodpressuresynchronizer.DatabaseContract.BPEntry.TABLE_NAME;
 
@@ -110,6 +102,7 @@ public class MainActivity extends AppCompatActivity
             service = new ServiceBuilder()
                     .apiKey(WithingsAPI.API_KEY)
                     .apiSecret(WithingsAPI.API_SECRET)
+                    .signatureType(SignatureType.QueryString)
                     .build(WithingsAPI.instance());
             accessToken = new OAuth1AccessToken(accessTokenKey, accessTokenSecret);
             getBPDataFromWithings();
@@ -213,14 +206,8 @@ public class MainActivity extends AppCompatActivity
         db = dbHelper.getWritableDatabase(); // get the data repository in write mode
 
         try {
-            Uri uri;
-            if (isNetworkAvailable()) {
-                uri = signRequestAndGetURI();
-            } else {
-                uri = Uri.parse("no internet");
-            }
-            new OpenConnectionAndGetJSON().execute(uri);
-        } catch (NoSuchAlgorithmException | UnsupportedEncodingException | InvalidKeyException | RuntimeException e) {
+            new OpenConnectionAndGetJSON().execute();
+        } catch (RuntimeException e) {
             e.printStackTrace();
         }
 
@@ -402,96 +389,18 @@ public class MainActivity extends AppCompatActivity
 
     }
 
-    // http://stackoverflow.com/a/5683362/5572217
-    private String generateRandomString() {
-        char[] chars = "abcdefghijklmnopqrstuvwxyz0123456789".toCharArray();
-        StringBuilder sb = new StringBuilder();
-        Random random = new Random();
-        for (int i = 0; i < 32; i++) {
-            char c = chars[random.nextInt(chars.length)];
-            sb.append(c);
-        }
-        return sb.toString();
-    }
-
-    // http://stackoverflow.com/a/6457017/5572217
-    private String getSignature(String url, String params) throws InvalidKeyException, NoSuchAlgorithmException, UnsupportedEncodingException {
-        /**
-         * base string has three parts, they are connected by "&":
-         * 1) protocol
-         * 2) URL (needs to be URLEncoded)
-         * 3) parameter list (needs to be URLEncoded).
-         */
-        StringBuilder base = new StringBuilder();
-        base.append("GET&");
-        base.append(url);
-        base.append("&");
-        base.append(params);
-
-        Log.i("BASE", base.toString());
-
-        byte[] keyBytes = (WithingsAPI.API_SECRET + "&" + accessTokenSecret).getBytes(ENC);
-        SecretKey key = new SecretKeySpec(keyBytes, "HmacSHA1");
-        Mac mac = Mac.getInstance("HmacSHA1");
-        mac.init(key);
-
-        // encode it, base64 it, change it to string and return
-        byte[] bytes = mac.doFinal(base.toString().getBytes(ENC));
-        return Base64.encodeToString(bytes, Base64.DEFAULT).trim();
-    }
-
-    private Uri signRequestAndGetURI() throws InvalidKeyException, NoSuchAlgorithmException, UnsupportedEncodingException {
-        String oauth_nonce = generateRandomString();
-
-        String params = "action=getmeas&" +
-                "oauth_consumer_key=" + WithingsAPI.API_KEY + "&" +
-                "oauth_nonce=" + oauth_nonce + "&" +
-                "oauth_signature_method=HMAC-SHA1&" +
-                "oauth_timestamp=" + (System.currentTimeMillis() / 1000) + "&" +
-                "oauth_token=" + accessTokenKey + "&" +
-                "oauth_version=1.0&" +
-                "userid=" + user_id;
-
-        Log.i("PARAMS", params);
-
-        // generate the oauth_signature
-        // http://stackoverflow.com/a/6457017/5572217
-        String signature = getSignature(
-                URLEncoder.encode("http://wbsapi.withings.net/measure", ENC),
-                URLEncoder.encode(params, ENC)
-        );
-
-        return Uri.parse("http://wbsapi.withings.net/measure?" + params + "&oauth_signature=" + signature);
-    }
-
-    private class OpenConnectionAndGetJSON extends AsyncTask<Uri, Void, JSONObject> {
+    private class OpenConnectionAndGetJSON extends AsyncTask<Object, Void, JSONObject> {
 
         @Override
-        protected JSONObject doInBackground(Uri... uris) throws RuntimeException {
+        protected JSONObject doInBackground(Object... params) throws RuntimeException {
 
-            Uri uri = uris[0];
-            String uriStr = uri.toString();
             try {
-                if (uriStr.equals("no internet")) {
-                    return new JSONObject("{no: internet}");
-                } else {
-
-                    URLConnection urlConnection = new URL(uriStr).openConnection();
-                    InputStream in = urlConnection.getInputStream();
-                    BufferedReader r = new BufferedReader(new InputStreamReader(in));
-
-                    StringBuilder total = new StringBuilder();
-                    String line;
-                    while ((line = r.readLine()) != null) {
-                        total.append(line).append('\n');
-                    }
-
-                    r.close();
-                    in.close();
-
-                    return new JSONObject(total.toString());
-
-                }
+                final OAuthRequest request = new OAuthRequest(Verb.GET, "http://wbsapi.withings.net/measure", service);
+                request.addParameter("action", "getmeas");
+                request.addParameter("userid", user_id);
+                service.signRequest(accessToken, request); // the access token from step 4
+                final Response response = request.send();
+                return new JSONObject(response.getBody());
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -502,7 +411,7 @@ public class MainActivity extends AppCompatActivity
         protected void onPostExecute(JSONObject json) throws RuntimeException {
             Log.i("JSON GOT", json.toString());
 
-            if (!json.toString().equals("{\"no\":\"internet\"}")) {
+            if (isNetworkAvailable()) {
 
                 String user_personal_id = prefs.getString("user_personal_id", "");
                 if (!user_personal_id.isEmpty()) {

@@ -10,6 +10,7 @@ import android.webkit.WebViewClient;
 import com.github.scribejava.core.builder.ServiceBuilder;
 import com.github.scribejava.core.builder.api.DefaultApi10a;
 import com.github.scribejava.core.model.OAuth1RequestToken;
+import com.github.scribejava.core.model.SignatureType;
 
 import java.io.IOException;
 
@@ -28,6 +29,7 @@ public class WithingsAuthenticationActivity extends AppCompatActivity {
         MainActivity.service = new ServiceBuilder()
                 .apiKey(WithingsAPI.API_KEY)
                 .apiSecret(WithingsAPI.API_SECRET)
+                .signatureType(SignatureType.QueryString)
                 .build(WithingsAPI.instance());
 
         new Thread(new Runnable() {
