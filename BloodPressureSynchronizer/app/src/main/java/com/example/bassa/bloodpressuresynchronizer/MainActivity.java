@@ -24,6 +24,7 @@ import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -84,6 +85,9 @@ public class MainActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        dbHelper = new DatabaseHelper(MainActivity.this); // create a database helper
+        db = dbHelper.getWritableDatabase(); // get the data repository in write mode
+
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
         accessTokenKey = prefs.getString("access_token_key", "");
@@ -91,30 +95,31 @@ public class MainActivity extends AppCompatActivity
         user_id = prefs.getString("user_id", "");
 
         // http://stackoverflow.com/a/40258662/5572217
-        if (accessTokenKey.isEmpty() || accessTokenSecret.isEmpty() || user_id.isEmpty()) {
-            if (isNetworkAvailable()) {
+        if (isNetworkAvailable()) {
+            if (accessTokenKey.isEmpty() || accessTokenSecret.isEmpty() || user_id.isEmpty()) {
                 Intent intent = new Intent(this, WithingsAuthenticationActivity.class);
                 startActivityForResult(intent, AUTHENTICATION_REQUEST);
             } else {
+                service = new ServiceBuilder()
+                        .apiKey(WithingsAPI.API_KEY)
+                        .apiSecret(WithingsAPI.API_SECRET)
+                        .signatureType(SignatureType.QueryString)
+                        .build(WithingsAPI.instance());
+                accessToken = new OAuth1AccessToken(accessTokenKey, accessTokenSecret);
+
                 initializeUI();
+                getBPDataFromWithings();
             }
         } else {
-            service = new ServiceBuilder()
-                    .apiKey(WithingsAPI.API_KEY)
-                    .apiSecret(WithingsAPI.API_SECRET)
-                    .signatureType(SignatureType.QueryString)
-                    .build(WithingsAPI.instance());
-            accessToken = new OAuth1AccessToken(accessTokenKey, accessTokenSecret);
-            getBPDataFromWithings();
+            initializeUI();
+            populateListViewFromDB();
         }
     }
 
     @Override
     protected void onRestart() {
         super.onRestart();
-        if (!accessTokenKey.isEmpty() && !accessTokenSecret.isEmpty() && !user_id.isEmpty()) {
-            getBPDataFromWithings();
-        }
+        initializeUI();
     }
 
     @Override
@@ -162,6 +167,7 @@ public class MainActivity extends AppCompatActivity
             editor.putString("user_id", user_id);
             editor.apply();
 
+            initializeUI();
             getBPDataFromWithings();
         };
     };
@@ -196,21 +202,24 @@ public class MainActivity extends AppCompatActivity
         updateStuff(prefs, "user_personal_id");
         updateStuff(prefs, "notifications_on");
 
+        if (!user_id.isEmpty() && isNetworkAvailable() && !prefs.getString("user_personal_id", "").isEmpty()) {
+            Button syncBtn = (Button) findViewById(R.id.syncBtn);
+            syncBtn.setVisibility(View.VISIBLE);
+            syncBtn.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    getBPDataFromWithings();
+                }
+            });
+        }
+
     }
 
     private void getBPDataFromWithings() {
-
-        initializeUI();
-
-        dbHelper = new DatabaseHelper(MainActivity.this); // create a database helper
-        db = dbHelper.getWritableDatabase(); // get the data repository in write mode
-
         try {
             new OpenConnectionAndGetJSON().execute();
         } catch (RuntimeException e) {
             e.printStackTrace();
         }
-
     }
 
     @Override
@@ -250,40 +259,66 @@ public class MainActivity extends AppCompatActivity
             TextView navBarSummary = (TextView) header.findViewById(R.id.navBarSummary);
             navBarSummary.setText(userID);
 
-            if (!shared.getString("user_personal_id", "").isEmpty()) {
+            if (!userID.isEmpty()) {
                 // removes the annoying orange message
                 personalIDMessage.setVisibility(View.GONE);
             } else {
                 personalIDMessage.setVisibility(View.VISIBLE);
             }
 
-            initializeAutomaticBPDataTransfer();
-        } else if (key.equals("user_first_name") || key.equals("user_last_name")) {
+            initializeAlarms("synchronization_frequency", true);
+        }
+
+        else if (key.equals("user_first_name") || key.equals("user_last_name")) {
             String firstName = shared.getString("user_first_name", "");
             String lastName = shared.getString("user_last_name", "");
             TextView navBarName = (TextView) header.findViewById(R.id.navBarName);
             navBarName.setText(firstName + " " + lastName);
-        } else if (key.equals("notifications_on")) {
+        }
+
+        else if (key.equals("synchronization_on")) {
             if (shared.getBoolean(key, false)) {
-                initializeNotifications(true);
+                initializeAlarms("synchronization_frequency", true);
+                Log.i("SYNCHRONIZATION", "ON");
+            } else {
+                initializeAlarms("synchronization_frequency", false);
+                Log.i("SYNCHRONIZATION", "OFF");
+            }
+        }
+
+        else if (key.equals("synchronization_frequency")) {
+            initializeAlarms(key, true);
+        }
+
+        else if (key.equals("notifications_on")) {
+            if (shared.getBoolean(key, false)) {
+                initializeAlarms("notification_frequency", true);
                 Log.i("NOTIFICATIONS", "ON");
             } else {
-                initializeNotifications(false);
+                initializeAlarms("notification_frequency", false);
                 Log.i("NOTIFICATIONS", "OFF");
             }
-        } else if (key.equals("notification_frequency")) {
-            initializeNotifications(true);
+        }
+
+        else if (key.equals("notification_frequency")) {
+            initializeAlarms(key, true);
         }
     }
 
-    private void initializeNotifications(boolean initialize) {
+    private void initializeAlarms(String key, boolean initialize) {
 
         // initialize firing notifications
         // http://stackoverflow.com/a/16871244/5572217
         // http://karanbalkar.com/2013/07/tutorial-41-using-alarmmanager-and-broadcastreceiver-in-android/
 
-        Intent intent = new Intent(getApplication(), MeasureBPNotificationReceiver.class);
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(getApplication(), (int) System.currentTimeMillis(), intent, PendingIntent.FLAG_CANCEL_CURRENT);
+        PendingIntent pendingIntent = null;
+        if (key.equals("synchronization_frequency")) {
+            Intent intent = new Intent(getApplication(), SendBPDataNotificationReceiver.class);
+            pendingIntent = PendingIntent.getBroadcast(getApplication(), 1, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+        } else if (key.equals("notification_frequency")) {
+            Intent intent = new Intent(getApplication(), MeasureBPNotificationReceiver.class);
+            pendingIntent = PendingIntent.getBroadcast(getApplication(), 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+        }
 
         AlarmManager am = (AlarmManager) getApplication().getSystemService(Context.ALARM_SERVICE);
         am.cancel(pendingIntent);
@@ -293,13 +328,17 @@ public class MainActivity extends AppCompatActivity
             Calendar currentCal = Calendar.getInstance();
 
             firingCal.set(Calendar.HOUR_OF_DAY, 10); // At the hour you wanna fire
-            firingCal.set(Calendar.MINUTE, 0); // Particular minute
+            if (key.equals("synchronization_frequency")) {
+                firingCal.set(Calendar.MINUTE, 15); // Particular minute
+            } else if (key.equals("notification_frequency")) {
+                firingCal.set(Calendar.MINUTE, 0); // Particular minute
+            }
             firingCal.set(Calendar.SECOND, 0);
 
             long intendedTime = firingCal.getTimeInMillis();
             long currentTime = currentCal.getTimeInMillis();
 
-            int frequency = Integer.valueOf(prefs.getString("notification_frequency", ""));
+            int frequency = Integer.valueOf(prefs.getString(key, "1"));
             Log.i("FREQUENCY", "" + frequency);
 
             if (intendedTime >= currentTime) { // 8.32, 9.57, etc.
@@ -312,41 +351,6 @@ public class MainActivity extends AppCompatActivity
                 intendedTime = firingCal.getTimeInMillis();
                 am.setRepeating(AlarmManager.RTC_WAKEUP, intendedTime, 60000*60*frequency, pendingIntent);
             }
-        }
-
-    }
-
-    private void initializeAutomaticBPDataTransfer() {
-
-        // initialize firing notifications
-        // http://stackoverflow.com/a/16871244/5572217
-        // http://karanbalkar.com/2013/07/tutorial-41-using-alarmmanager-and-broadcastreceiver-in-android/
-
-        Intent intent = new Intent(getApplication(), SendBPDataNotificationReceiver.class);
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(getApplication(), (int) System.currentTimeMillis(), intent, PendingIntent.FLAG_CANCEL_CURRENT);
-
-        AlarmManager am = (AlarmManager) getApplication().getSystemService(Context.ALARM_SERVICE);
-        am.cancel(pendingIntent);
-
-        Calendar firingCal = Calendar.getInstance();
-        Calendar currentCal = Calendar.getInstance();
-
-        firingCal.set(Calendar.HOUR_OF_DAY, 10); // At the hour you wanna fire
-        firingCal.set(Calendar.MINUTE, 30); // Particular minute
-        firingCal.set(Calendar.SECOND, 0);
-
-        long intendedTime = firingCal.getTimeInMillis();
-        long currentTime = currentCal.getTimeInMillis();
-
-        if (intendedTime >= currentTime) { // 8.32, 9.57, etc.
-            am.setRepeating(AlarmManager.RTC_WAKEUP, intendedTime, 60000*60, pendingIntent); // 60000 is one minute, 60000*60 is 60 minutes
-        } else { // 18.30, 20.19
-            int hours = currentCal.get(Calendar.HOUR_OF_DAY); // 18, 19
-
-            firingCal.set(Calendar.HOUR_OF_DAY, hours + 1);
-
-            intendedTime = firingCal.getTimeInMillis();
-            am.setRepeating(AlarmManager.RTC_WAKEUP, intendedTime, 60000*60, pendingIntent);
         }
 
     }
@@ -383,6 +387,7 @@ public class MainActivity extends AppCompatActivity
 
             if (!a.user_id.isEmpty()) {
                 Log.i("SENDING BP DATA", "TO FAKE E-HEALTH");
+                a.initializeUI();
                 a.getBPDataFromWithings();
             }
         }
@@ -409,26 +414,19 @@ public class MainActivity extends AppCompatActivity
 
         @Override
         protected void onPostExecute(JSONObject json) throws RuntimeException {
-            Log.i("JSON GOT", json.toString());
-
-            if (isNetworkAvailable()) {
-
-                String user_personal_id = prefs.getString("user_personal_id", "");
-                if (!user_personal_id.isEmpty()) {
-                    try {
-                        json.put("user_personal_id", user_personal_id);
-                        Log.i("JSON SENT", json.toString());
-                        new PostDataToServer().execute(json.toString());
-                        Toast.makeText(MainActivity.this, "Saatsin andmed Minu-tervisesse", Toast.LENGTH_LONG).show();
-                    } catch (JSONException e) {
-                        throw new RuntimeException(e);
-                    }
+            String user_personal_id = prefs.getString("user_personal_id", "");
+            if (!user_personal_id.isEmpty()) {
+                try {
+                    json.put("user_personal_id", user_personal_id);
+                    new PostDataToServer().execute(json.toString());
+                    Toast.makeText(MainActivity.this, "Sünkroniseerisin andmed Minu-tervisega", Toast.LENGTH_LONG).show();
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
                 }
-
-                dbHelper.deleteAll(db);
-                addBPDataToDB(json);
-
             }
+
+            dbHelper.deleteAll(db);
+            addBPDataToDB(json);
 
             populateListViewFromDB();
         }
@@ -453,7 +451,6 @@ public class MainActivity extends AppCompatActivity
                 int pulse = 0;
 
                 for (int j = 0; j < len_measures; j++) { // otherwise go through a BP entry
-
                     JSONObject measure = (JSONObject) measures.get(j);
                     String type = measure.getString("type");
                     int value = measure.getInt("value");
@@ -465,10 +462,9 @@ public class MainActivity extends AppCompatActivity
                     } else if (type.equals("11")) { // Heart Pulse (bpm)
                         pulse = value;
                     }
-
                 }
 
-                long id = dbHelper.insert(db, sys, dia, pulse, grp.getString("date"));
+                dbHelper.insert(db, sys, dia, pulse, grp.getString("date"));
 
             }
 
@@ -555,10 +551,6 @@ public class MainActivity extends AppCompatActivity
                     cursor.moveToNext();
                 }
             }
-
-            SharedPreferences.Editor editor = prefs.edit();
-            editor.putStringSet("dates_sent_to_server", dates);
-            editor.apply();
         }
 
     };

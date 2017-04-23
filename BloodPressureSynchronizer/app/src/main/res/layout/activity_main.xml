@@ -56,7 +56,8 @@
                 android:orientation="vertical"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="5dp"/>
+                android:layout_marginBottom="16dp"
+                android:layout_weight="1"/>
 
             <TextView
                 android:id="@+id/emptyLabel"
@@ -64,6 +65,18 @@
                 android:layout_width="fill_parent"
                 android:layout_height="fill_parent"
                 android:gravity="center"
+                android:visibility="gone"/>
+
+            <Button
+                android:id="@+id/syncBtn"
+                android:text="Sünkroniseeri Minu-tervisega"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/button"
+                style="?android:attr/borderlessButtonStyle"
+                android:minHeight="40dip"
+                android:textColor="#FFFFFF"
+                android:layout_gravity="center"
                 android:visibility="gone"/>
 
         </LinearLayout>
