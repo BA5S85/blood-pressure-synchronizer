@@ -49,19 +49,19 @@
                 android:textColor="@color/colorAccent"
                 android:minLines="2"
                 android:paddingBottom="16dp"
-                android:text="Hea kasutaja! Palun võta lahti vasakpoolne külgriba, mine Minu kontaktandmetesse ja sisesta oma isikukood, muidu me ei saa su andmeid Minu-tervisesse saata." />
+                android:text="@string/personal_id_needed_msg" />
 
             <ListView
                 android:id="@+id/listView"
                 android:orientation="vertical"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="0dp"
                 android:layout_marginBottom="16dp"
                 android:layout_weight="1"/>
 
             <TextView
                 android:id="@+id/emptyLabel"
-                android:text="Hea kasutaja! Sul puuduvad andmed vererõhu mõõtmiste kohta. Palun kasuta oma Withings seadet, et oma vererõhku mõõta."
+                android:text="@string/empty_listview_msg"
                 android:layout_width="fill_parent"
                 android:layout_height="fill_parent"
                 android:gravity="center"
@@ -69,7 +69,7 @@
 
             <Button
                 android:id="@+id/syncBtn"
-                android:text="Sünkroniseeri Minu-tervisega"
+                android:text="@string/synchronize_btn"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:background="@drawable/button"

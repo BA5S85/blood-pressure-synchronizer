@@ -50,8 +50,6 @@ import java.lang.ref.WeakReference;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.Calendar;
-import java.util.HashSet;
-import java.util.Set;
 
 import static com.example.bassa.bloodpressuresynchronizer.DatabaseContract.BPEntry.TABLE_NAME;
 
@@ -191,15 +189,16 @@ public class MainActivity extends AppCompatActivity
 
         personalIDMessage = (TextView) findViewById(R.id.personalIDMessage);
         if (isNetworkAvailable()) {
-            personalIDMessage.setText("Hea kasutaja! Palun võta lahti vasakpoolne külgriba, mine Minu kontaktandmetesse ja sisesta oma isikukood, muidu me ei saa su andmeid Minu-tervisesse saata.");
+            personalIDMessage.setText(R.string.personal_id_needed_msg);
         } else {
-            personalIDMessage.setText("Hea kasutaja! Sinu telefonil puudub internetiühendus. Offline-režiimis võid vaadata ja muuta oma kontaktandmeid ja rakenduse seadeid, samuti kui sul on varasemalt sünkroniseeritud vererõhuandmeid, siis võid ka neid vaadata. Enam midagi teha ei saa. Palun ühendu internetiga, et me saaksime ka uusi andmeid sünkroniseerida ja Minu-tervisesse saata.");
+            personalIDMessage.setText(R.string.no_network_msg);
         }
 
         // Set user's name and id to be shown in the navbar
         updateStuff(prefs, "user_first_name");
         updateStuff(prefs, "user_last_name");
         updateStuff(prefs, "user_personal_id");
+        updateStuff(prefs, "synchronization_on");
         updateStuff(prefs, "notifications_on");
 
         if (!user_id.isEmpty() && isNetworkAvailable() && !prefs.getString("user_personal_id", "").isEmpty()) {
@@ -277,7 +276,7 @@ public class MainActivity extends AppCompatActivity
         }
 
         else if (key.equals("synchronization_on")) {
-            if (shared.getBoolean(key, false)) {
+            if (shared.getBoolean(key, true)) {
                 initializeAlarms("synchronization_frequency", true);
                 Log.i("SYNCHRONIZATION", "ON");
             } else {
@@ -419,7 +418,6 @@ public class MainActivity extends AppCompatActivity
                 try {
                     json.put("user_personal_id", user_personal_id);
                     new PostDataToServer().execute(json.toString());
-                    Toast.makeText(MainActivity.this, "Sünkroniseerisin andmed Minu-tervisega", Toast.LENGTH_LONG).show();
                 } catch (JSONException e) {
                     throw new RuntimeException(e);
                 }
@@ -427,8 +425,9 @@ public class MainActivity extends AppCompatActivity
 
             dbHelper.deleteAll(db);
             addBPDataToDB(json);
-
             populateListViewFromDB();
+
+            Toast.makeText(MainActivity.this, "Sünkroniseerisin andmed Withingsiga", Toast.LENGTH_LONG).show();
         }
 
     }
@@ -542,15 +541,7 @@ public class MainActivity extends AppCompatActivity
         protected void onPostExecute(String str) throws RuntimeException {
             Log.i("RESPONSE_FROM_SERVER", str);
 
-            Set<String> dates = new HashSet<>();
-            Cursor cursor = db.rawQuery("select * from bp_entry", null);
-            if (cursor.moveToFirst()) {
-                while (!cursor.isAfterLast()) {
-                    String date = cursor.getString(cursor.getColumnIndex("date"));
-                    dates.add(date);
-                    cursor.moveToNext();
-                }
-            }
+            Toast.makeText(MainActivity.this, "Saatsin andmed Minu-tervisesse", Toast.LENGTH_LONG).show();
         }
 
     };
