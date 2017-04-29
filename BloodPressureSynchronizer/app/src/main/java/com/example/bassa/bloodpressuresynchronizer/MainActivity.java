@@ -541,7 +541,7 @@ public class MainActivity extends AppCompatActivity
         protected void onPostExecute(String str) throws RuntimeException {
             Log.i("RESPONSE_FROM_SERVER", str);
 
-            Toast.makeText(MainActivity.this, "Saatsin andmed Minu-tervisesse", Toast.LENGTH_LONG).show();
+            Toast.makeText(MainActivity.this, "Sünkroniseerisin andmed Minu-tervisega", Toast.LENGTH_LONG).show();
         }
 
     };

@@ -1,12 +1,12 @@
 <resources>
-    <string name="app_name">Vererõhu sünkroniseerija</string>
+    <string name="app_name">Minu-tervis</string>
     <string name="navigation_drawer_open">Näita külgriba</string>
     <string name="navigation_drawer_close">Peida külgriba</string>
-    <string name="title_activity_main">Vererõhu sünkroniseerija</string>
+    <string name="title_activity_main">Minu-tervis</string>
     <string name="title_activity_settings">Seaded</string>
-    <string name="empty_listview_msg">Hea kasutaja! Sul puuduvad andmed vererõhu mõõtmiste kohta. Palun kasuta oma Withings seadet, et oma vererõhku mõõta.</string>
-    <string name="personal_id_needed_msg">Hea kasutaja! Palun võta lahti vasakpoolne külgriba, mine Minu kontaktandmetesse ja sisesta oma isikukood, muidu me ei saa su andmeid Minu-tervisesse saata.</string>
-    <string name="no_network_msg">Hea kasutaja! Sinu telefonil puudub internetiühendus. Offline-režiimis võid vaadata ja muuta oma kontaktandmeid ja rakenduse seadeid, samuti kui sul on varasemalt sünkroniseeritud vererõhuandmeid, siis võid ka neid vaadata. Enam midagi teha ei saa. Palun ühendu internetiga, et me saaksime ka uusi andmeid sünkroniseerida ja Minu-tervisesse saata.</string>
+    <string name="empty_listview_msg">Hea kasutaja! Sul puuduvad vererõhu mõõtmised. Palun kasuta oma Withings seadet, et oma vererõhku mõõta.</string>
+    <string name="personal_id_needed_msg">Hea kasutaja! Palun võta lahti vasakpoolne külgriba, mine Minu kontaktandmetesse ja sisesta oma isikukood, muidu me ei saa sinu andmeid Minu-tervisesse saata.</string>
+    <string name="no_network_msg">Hea kasutaja! Sinu telefonil puudub internetiühendus. Offline-režiimis võid vaadata ja muuta oma kontaktandmeid ja rakenduse seadeid, samuti kui sul on varasemalt sünkroniseeritud vererõhuandmeid, siis võid ka neid vaadata. Palun ühendu internetiga, et me saaksime ka uusi andmeid sünkroniseerida ja neid Minu-tervisesse saata.</string>
     <string name="synchronize_btn">Sünkroniseeri</string>
     <string name="sys_label">SÜS</string>
     <string name="dia_label">DIA</string>
