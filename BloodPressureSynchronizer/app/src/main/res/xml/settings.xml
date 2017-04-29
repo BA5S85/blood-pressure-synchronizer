@@ -2,13 +2,13 @@
 <PreferenceScreen
     xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <PreferenceCategory android:title="Andmete sünkroniseerimine">
+    <PreferenceCategory android:title="Automaatne sünkroniseerimine">
 
         <SwitchPreference
             android:defaultValue="true"
             android:key="synchronization_on"
             android:summary="Lülita sisse vererõhuandmete automaatne sünkroniseerimine Minu-tervisega"
-            android:title="Automaatne sünkroniseerimine" />
+            android:title="Sünkroniseerimine" />
 
         <ListPreference
             android:dependency="synchronization_on"

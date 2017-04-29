@@ -514,7 +514,7 @@ public class MainActivity extends AppCompatActivity
 
             String data = strings[0];
             try {
-                URLConnection urlConnection = new URL("https://fake-e-health.herokuapp.com").openConnection();
+                URLConnection urlConnection = new URL("https://minu-tervis-veeb.herokuapp.com").openConnection();
                 urlConnection.setDoOutput(true);
                 OutputStreamWriter wr = new OutputStreamWriter(urlConnection.getOutputStream());
                 wr.write(data);
