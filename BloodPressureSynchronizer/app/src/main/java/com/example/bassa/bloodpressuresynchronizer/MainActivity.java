@@ -5,6 +5,7 @@ import android.app.IntentService;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
@@ -19,6 +20,7 @@ import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -93,11 +95,25 @@ public class MainActivity extends AppCompatActivity
         user_id = prefs.getString("user_id", "");
 
         // http://stackoverflow.com/a/40258662/5572217
-        if (isNetworkAvailable()) {
-            if (accessTokenKey.isEmpty() || accessTokenSecret.isEmpty() || user_id.isEmpty()) {
+        boolean networkAvailable = isNetworkAvailable();
+        if (accessTokenKey.isEmpty() || accessTokenSecret.isEmpty() || user_id.isEmpty()) {
+            if (networkAvailable) {
                 Intent intent = new Intent(this, WithingsAuthenticationActivity.class);
                 startActivityForResult(intent, AUTHENTICATION_REQUEST);
             } else {
+                new AlertDialog.Builder(this)
+                    .setTitle("Internetiühendus puudub!")
+                    .setMessage("Palun vajuta OK nuppu, taasta internetiühendus ja tee see rakendus uuesti lahti.")
+                    .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            finish();
+                        }
+                    })
+                    .setIcon(android.R.drawable.ic_dialog_alert)
+                    .show();
+            }
+        } else {
+            if (networkAvailable) {
                 service = new ServiceBuilder()
                         .apiKey(WithingsAPI.API_KEY)
                         .apiSecret(WithingsAPI.API_SECRET)
@@ -107,17 +123,19 @@ public class MainActivity extends AppCompatActivity
 
                 initializeUI();
                 getBPDataFromWithings();
+            } else {
+                initializeUI();
+                populateListViewFromDB();
             }
-        } else {
-            initializeUI();
-            populateListViewFromDB();
         }
     }
 
     @Override
     protected void onRestart() {
         super.onRestart();
-        initializeUI();
+        if (!accessTokenKey.isEmpty() & !accessTokenSecret.isEmpty() & !user_id.isEmpty()) {
+            initializeUI();
+        }
     }
 
     @Override
@@ -131,6 +149,8 @@ public class MainActivity extends AppCompatActivity
                     oauth_verifier = extras.getString("VERIFIER");
                     getAccessTokenThread.execute((Object) null);
                 }
+            } else {
+                finish();
             }
         }
     }
@@ -188,6 +208,7 @@ public class MainActivity extends AppCompatActivity
         navigationView.setNavigationItemSelectedListener(this);
 
         personalIDMessage = (TextView) findViewById(R.id.personalIDMessage);
+        personalIDMessage.setVisibility(View.VISIBLE);
         if (isNetworkAvailable()) {
             personalIDMessage.setText(R.string.personal_id_needed_msg);
         } else {

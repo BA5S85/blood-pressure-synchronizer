@@ -17,12 +17,14 @@ import java.io.IOException;
 // http://stackoverflow.com/a/40258662/5572217
 public class WithingsAuthenticationActivity extends AppCompatActivity {
 
+    private WebView webView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_withings_authentication);
 
-        final WebView webView = (WebView) findViewById(R.id.webView);
+        webView = (WebView) findViewById(R.id.webView);
         webView.getSettings().setJavaScriptEnabled(true);
         webView.setWebViewClient(new MyWebViewClient(webView));
 
@@ -65,8 +67,26 @@ public class WithingsAuthenticationActivity extends AppCompatActivity {
 
     }
 
+    @Override
+    // http://stackoverflow.com/a/9743841/5572217
+    public void onBackPressed() {
+        if (webView.canGoBack()) {
+            webView.goBack();
+        } else {
+            Intent intent = new Intent(Intent.ACTION_MAIN);
+            intent.addCategory(Intent.CATEGORY_HOME);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+        }
+    }
+
     private void getVerifier(final String url) {
         try {
+            if (url.equals("https://oauth.withings.com/account/This%20is%20a%20mobile%20application")) { // access denied
+                finish();
+                return;
+            }
+
             String divStrUID = "userid=";
             String divStrVerifier = "oauth_verifier=";
 
