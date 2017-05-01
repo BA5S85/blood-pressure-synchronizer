@@ -4,8 +4,8 @@
     <string name="navigation_drawer_close">Peida külgriba</string>
     <string name="title_activity_main">Minu-tervis</string>
     <string name="title_activity_settings">Seaded</string>
-    <string name="empty_listview_msg">Hea kasutaja! Sul puuduvad vererõhu mõõtmised. Palun kasuta oma Withings seadet, et oma vererõhku mõõta.</string>
-    <string name="personal_id_needed_msg">Hea kasutaja! Palun võta lahti vasakpoolne külgriba, mine Minu kontaktandmetesse ja sisesta oma isikukood, muidu me ei saa sinu andmeid Minu-tervisesse saata.</string>
+    <string name="empty_listview_msg">Hea kasutaja! Sa ei ole veel oma vererõhku Withings seadmega mõõtnud. Palun kasuta oma Withings seadet ja Withings Health Mate mobiilirakendust, et oma vererõhku mõõta.</string>
+    <string name="personal_id_needed_msg">Hea kasutaja! Palun võta lahti vasakpoolne külgriba, mine Minu kontaktandmetesse ja sisesta oma isikukood, et sinu andmeid oleks võimalik Minu-tervisesse saata.</string>
     <string name="no_network_msg">Hea kasutaja! Sinu telefonil puudub internetiühendus. Offline-režiimis võid vaadata ja muuta oma kontaktandmeid ja rakenduse seadeid, samuti kui sul on varasemalt sünkroniseeritud vererõhuandmeid, siis võid ka neid vaadata. Palun ühenda telefon internetti, et see rakendus saaks ka uusi andmeid Withingsist sünkroniseerida ja neid Minu-tervisesse saata.</string>
     <string name="synchronize_btn">Sünkroniseeri</string>
     <string name="sys_label">SÜS</string>

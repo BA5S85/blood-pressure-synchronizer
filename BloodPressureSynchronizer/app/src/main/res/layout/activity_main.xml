@@ -47,8 +47,13 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textColor="@color/colorAccent"
+                android:background="@drawable/border"
                 android:minLines="2"
-                android:paddingBottom="16dp"
+                android:paddingLeft="12dp"
+                android:paddingRight="12dp"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp"
+                android:layout_marginBottom="10dp"
                 android:visibility="gone"
                 android:text="@string/personal_id_needed_msg" />
 
@@ -58,6 +63,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="0dp"
                 android:layout_marginBottom="16dp"
+                android:paddingLeft="4dp"
+                android:paddingRight="4dp"
                 android:layout_weight="1"/>
 
             <TextView

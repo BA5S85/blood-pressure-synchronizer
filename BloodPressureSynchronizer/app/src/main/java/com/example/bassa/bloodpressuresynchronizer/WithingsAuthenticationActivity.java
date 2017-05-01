@@ -24,6 +24,8 @@ public class WithingsAuthenticationActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_withings_authentication);
 
+        getSupportActionBar().setElevation(0);
+
         webView = (WebView) findViewById(R.id.webView);
         webView.getSettings().setJavaScriptEnabled(true);
         webView.setWebViewClient(new MyWebViewClient(webView));
